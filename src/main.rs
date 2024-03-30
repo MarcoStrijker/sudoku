@@ -1,195 +1,120 @@
-struct Board {
-    pub numbers: Vec<u8>,
-    pub history: Vec<Vec<u8>>
-}
+mod lib;
+use lib::*;
 
-
-impl Board {
-
-    const ZERO: u8 = 0;
-
-    fn new() -> Board {
-        return Board {
-            numbers: vec![0; 80],
-            history: Vec::new()
-        }
-    }
-
-    fn from_string(str: &String) -> Board {
-        let current_state: Vec<u8> = str
-            .chars()
-            .map(|c| c.to_digit(10).unwrap() as u8)
-            .collect();
-        let current_history: Vec<Vec<u8>> =  vec![current_state.clone()];
-        return Board {
-            numbers: current_state,
-            history: current_history
-        }
-    }
-
-    pub fn to_string(&self) -> String {
-        return self.numbers
-            .iter()
-            .map(|n| n.to_string())
-            .collect();
-    }
-
-    pub fn print_board(&self) {
-        let string: String = self.to_string();
-
-        println!();
-        for (i, s) in string.chars().enumerate() {
-            // After each row, print a new line
-            if i != 0 && i % 9 == 0 {
-                println!();
-            }
-
-            // After three rows, print a row separation
-            if i != 0 && i % 27 == 0 {
-                println!(" —  —  —   —  —  —   —  —  — ");
-            }
-
-            // Print column separators
-            if i != 0 && i % 3 == 0 && i % 9 != 0 {
-                print!("|")
-            }
-            print!(" {} ", s);
-        }
-        println!()
-    }
-
-    pub fn rollback(&mut self, index: u32) {
-        self.numbers = self.history[index as usize].clone();
-        // self.history.truncate(index as usize + 1);
-    }
-
-    pub fn get(&self, index: u8) -> u8 {
-        return self.numbers[index as usize]
-    }
-
-    pub fn set(&mut self, index: u8, solution: u8) -> bool {
-        if index > 80 {
-            panic!("An set on a index higher than 80")
-        }
-
-        if !self.validate(index, solution) {
-            return false;
-        }
-
-        self.numbers[index as usize] = solution;
-        self.history.insert(self.history.len(), self.numbers.clone());
-        return true
-    }
-
-    pub fn set_in_row(&mut self, n: u8, index: u8, solution: u8) -> bool {
-        let real_index: u8 = n * 9 + index;
-        return self.set(real_index, solution)
-    }
-
-    pub fn set_in_column(&mut self, n: u8, index: u8, solution: u8) -> bool {
-        let real_index: u8 = index * 9 + n;
-        return self.set(real_index, solution)
-    }
-
-    pub fn set_in_quadrant(&mut self, n: u8, index: u8, solution: u8) -> bool {
-        let real_index: u8 = 27 * (n / 3) + 3 * (n % 3) + (index / 3) * 9 + (index % 3);
-        return self.set(real_index, solution)
-    }
-
-    pub fn column(&self, n: u8) -> Vec<u8> {
-        return (0..9).map(|i| self.numbers[usize::from(i * 9 + n)]).collect();
-    }
-
-    pub fn row(&self, n: u8) -> Vec<u8> {
-        return (0..9).map(|i| self.numbers[usize::from(n * 9 + i)]).collect();
-    }
-
-    pub fn quadrant(&self, n: u8) -> Vec<u8> {
-        return (0..9).map(|i| self.numbers[usize::from(27 * (n / 3) + 3 * (n % 3) + (i / 3) * 9 + (i % 3))]).collect();
-    }
-
-    pub fn row_from_index(&self, i: u8) -> Vec<u8> {
-        return self.row(i / 9)
-    }
-
-    pub fn column_from_index(&self, i: u8) -> Vec<u8> {
-        return self.column(i % 9)
-    }
-
-    pub fn quadrant_from_index(&self, i: u8) -> Vec<u8> {
-        return self.quadrant(i / 3 - i / 9 * 3 + i / 27 * 3)
-    }
-
-    pub fn validate(&self, index: u8, solution: u8) -> bool {
-        if self.quadrant_from_index(index).contains(&solution) {
-            return false
-        }
-        if self.row_from_index(index).contains(&solution) {
-            return false
-        }
-        if self.column_from_index(index).contains(&solution) {
-            return false
-        }
-        return true
-    }
-
-    pub fn solved(&self) -> bool {
-        return !self.numbers.contains(&Self::ZERO)
-    }
-
-}
-
-
-trait SolvingStrategy {
+trait SolveOneCell {
     fn solve(&self, board: Board) -> Board;
 }
 
-struct SimpleLogic;
+struct MissingCell;
+struct InferenceMissingCellsLine;
 
-impl SolvingStrategy for SimpleLogic {
+impl SolveOneCell for MissingCell {
     fn solve(&self, mut board: Board) -> Board {
         let mut num: u8;
         let mut index: u8;
         let mut valid: bool;
-        let mut collection: Vec<u8>;
+        let mut subset: SubSet;
+        let mut missing_values: Vec<u8>;
 
-        // TODO: Optimize
         for i in 0..8 {
-            collection = board.row(i);
-            if collection.iter().filter(|&&x| x == 0).count() == 1 {
-                num = 45 - collection.iter().map(|&x| x as u8).sum::<u8>();
-                index = collection.iter().position(|&x| x == 0).unwrap() as u8;
-                valid = board.set_in_row(i, index, num as u8);
-                if !valid {
-                    continue
-                }
-                return board;
+            subset = board.row(i);
+            missing_values = subset.values_missing();
+            if missing_values.len() != 1 {
+                continue
             }
+            num = *missing_values.get(0).unwrap();
+            index = *subset.indices_missing().get(0).unwrap();
+            valid = board.set_in_row(i, index, num);
+            if !valid {
+                continue
+            }
+            return board;
         }
 
         for i in 0..8 {
-            collection = board.column(i);
-            if collection.iter().filter(|&&x| x == 0).count() == 1 {
-                num = 45 - collection.iter().map(|&x| x as u8).sum::<u8>();
-                index = collection.iter().position(|&x| x == 0).unwrap() as u8;
-                valid = board.set_in_column(i, index, num as u8);
-                if !valid {
-                    continue
-                }
-                return board;
+            subset = board.column(i);
+            missing_values = subset.values_missing();
+            if missing_values.len() != 1 {
+                continue
             }
+            num = *missing_values.get(0).unwrap();
+            index = *subset.indices_missing().get(0).unwrap();
+            valid = board.set_in_row(i, index, num);
+            if !valid {
+                continue
+            }
+            return board;
         }
 
         for i in 0..8 {
-            collection = board.quadrant(i);
-            if collection.iter().filter(|&&x| x == 0).count() == 1 {
-                num = 45 - collection.iter().map(|&x| x as u8).sum::<u8>();
-                index = collection.iter().position(|&x| x == 0).unwrap() as u8;
-                valid = board.set_in_quadrant(i, index, num as u8);
-                if !valid {
-                    continue
+            subset = board.quadrant(i);
+            missing_values = subset.values_missing();
+            if missing_values.len() != 1 {
+                continue
+            }
+            num = *missing_values.get(0).unwrap();
+            index = *subset.indices_missing().get(0).unwrap();
+            valid = board.set_in_row(i, index, num);
+            if !valid {
+                continue
+            }
+            return board;
+        }
+        return board
+    }
+}
+
+
+impl SolveOneCell for InferenceMissingCellsLine {
+    fn solve(&self, mut board: Board) -> Board {
+        let mut missing_values: Vec<u8>;
+        let mut missing_indices: Vec<u8>;
+        let mut possible: Vec<u8>;
+
+        // Look through rows
+        for i in (0..9) {
+            missing_values = board.row(i).values_missing();
+            if missing_values.is_empty() {
+                continue
+            }
+            missing_indices = board.row(i).indices_missing();
+
+            for val in missing_values {
+                possible = Vec::<u8>::new();
+
+                for ii in &missing_indices {
+                    if !board.column_from_index(*ii).contains(&val) {
+                        possible.push(*ii)
+                    }
                 }
-                return board;
+
+                if possible.len() == 1 {
+                    board.set(*possible.get(0).unwrap(), val);
+                    return board
+                }
+            }
+        }
+
+        for i in (0..9) {
+            missing_values = board.column(i).values_missing();
+            if missing_values.is_empty() {
+                continue
+            }
+            missing_indices = board.column(i).indices_missing();
+
+            for val in missing_values {
+                possible = Vec::<u8>::new();
+
+                for ii in &missing_indices {
+                    if !board.row_from_index(*ii).contains(&val) {
+                        possible.push(*ii)
+                    }
+                }
+
+                if possible.len() == 1 {
+                    board.set(*possible.get(0).unwrap(), val);
+                    return board
+                }
             }
         }
 
@@ -208,12 +133,7 @@ fn brute_force(mut board: Board) -> Board {
     let mut solve_history: Vec<u32> = Vec::<u32>::new();
 
     // Get a vector with the index of the blank cells
-    let blanks: Vec<u8> = board.numbers
-        .iter()
-        .enumerate()
-        .filter(|&(_, &value)| value == 0)
-        .map(|(index, _)|  index as u8)
-        .collect();
+    let blanks: Vec<u8> = board.blanks();
 
     current_index = 0;
 
@@ -239,7 +159,7 @@ fn brute_force(mut board: Board) -> Board {
             continue
         }
 
-        // Add new solutiom
+        // Add new solution
         count += 1;
         solve_history.insert(current_index as usize, count);
         current_index += 1;
@@ -251,10 +171,15 @@ fn brute_force(mut board: Board) -> Board {
 
 
 fn main() {
-    let start = String::from("695127304138459672724836915851264739273981546946573821317692458489715263562348197");
-    let end = String::from("695127304138459672724836915851264739273981546946573821317692458489715263562348197");
+    let start = String::from("672003004031000250040000013107040000390000045200075106005096378060508009900007501");
+    // let end = String::from("695127304138459672724836915851264739273981546946573821317692458489715263562348197");
     let b = Board::from_string(&start);
     b.print_board();
-    let new_b = SimpleLogic.solve(b);
+    let mut new_b = InferenceMissingCellsLine.solve(b);
+    while !new_b.solved() {
+        new_b = InferenceMissingCellsLine.solve(new_b);
+        new_b = MissingCell.solve(new_b);
+    }
+
     new_b.print_board();
 }
