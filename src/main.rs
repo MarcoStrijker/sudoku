@@ -1,14 +1,17 @@
 mod lib;
+
+use std::cmp::PartialEq;
 use lib::*;
 
-trait SolveOneCell {
+trait Solver {
     fn solve(&self, board: Board) -> Board;
 }
 
 struct MissingCell;
 struct InferenceMissingCellsLine;
+struct InferenceQuadrant;
 
-impl SolveOneCell for MissingCell {
+impl Solver for MissingCell {
     fn solve(&self, mut board: Board) -> Board {
         let mut num: u8;
         let mut index: u8;
@@ -24,7 +27,7 @@ impl SolveOneCell for MissingCell {
             }
             num = *missing_values.get(0).unwrap();
             index = *subset.indices_missing().get(0).unwrap();
-            valid = board.set_in_row(i, index, num);
+            valid = board.set(index, num);
             if !valid {
                 continue
             }
@@ -39,7 +42,7 @@ impl SolveOneCell for MissingCell {
             }
             num = *missing_values.get(0).unwrap();
             index = *subset.indices_missing().get(0).unwrap();
-            valid = board.set_in_row(i, index, num);
+            valid = board.set(index, num);
             if !valid {
                 continue
             }
@@ -54,7 +57,7 @@ impl SolveOneCell for MissingCell {
             }
             num = *missing_values.get(0).unwrap();
             index = *subset.indices_missing().get(0).unwrap();
-            valid = board.set_in_row(i, index, num);
+            valid = board.set(index, num);
             if !valid {
                 continue
             }
@@ -65,7 +68,7 @@ impl SolveOneCell for MissingCell {
 }
 
 
-impl SolveOneCell for InferenceMissingCellsLine {
+impl Solver for InferenceMissingCellsLine {
     fn solve(&self, mut board: Board) -> Board {
         let mut missing_values: Vec<u8>;
         let mut missing_indices: Vec<u8>;
@@ -123,6 +126,59 @@ impl SolveOneCell for InferenceMissingCellsLine {
 }
 
 
+impl Solver for InferenceQuadrant {
+    fn solve(&self, mut board: Board) -> Board {
+        let mut missing_indices;
+        let mut missing_values;
+        let mut subset: SubSet;
+
+        let mut column: SubSet;
+        let mut row: SubSet;
+        let mut valid_spots: Vec<u8>;
+
+        for i in 0..9 {
+
+            // Check if anything needs to be solved
+            subset = board.quadrant(i);
+            if !subset.has_missing() {
+                continue
+            }
+
+            // Get indices and values of the cells
+            missing_indices = subset.indices_missing();
+            missing_values = subset.values_missing();
+
+            for val in missing_values {
+                // Collect th valid spots
+                // At the end, there will be checked if only
+                // one spot is valid, this is the one we're interested in
+                valid_spots = Vec::<u8>::new();
+                for ii in &missing_indices {
+                    row = board.row_from_index(*ii);
+                    if row.contains(&val) {
+                        continue
+                    }
+                    column = board.column_from_index(*ii);
+                    if column.contains(&val) {
+                        continue
+                    }
+
+                    // If missing values not in the row and column
+                    // of the cell, then it is a valid spot for the solution
+                    valid_spots.push(*ii);
+                }
+
+                // If only one spot is valid, we know the solution
+                if valid_spots.len() == 1 {
+                    board.set(*valid_spots.get(0).unwrap(), val);
+                    return board
+                }
+            }
+        }
+        return board
+    }
+}
+
 fn brute_force(mut board: Board) -> Board {
     let mut valid: bool;
     let mut current_index_board: u8;
@@ -169,17 +225,17 @@ fn brute_force(mut board: Board) -> Board {
     return board
 }
 
-
 fn main() {
-    let start = String::from("672003004031000250040000013107040000390000045200075106005096378060508009900007501");
+    let start = String::from("065370002000001370000640800097004028080090001100020940040006700070018050230900060");
     // let end = String::from("695127304138459672724836915851264739273981546946573821317692458489715263562348197");
     let b = Board::from_string(&start);
     b.print_board();
-    let mut new_b = InferenceMissingCellsLine.solve(b);
-    while !new_b.solved() {
-        new_b = InferenceMissingCellsLine.solve(new_b);
-        new_b = MissingCell.solve(new_b);
+    let mut old_b: Board = b.clone();
+    let mut new_b: Board;
+    for i in 0..100 {
+        old_b = InferenceQuadrant.solve(old_b);
     }
+    // old_b.print_board()
+    println!("{:?}", old_b.to_string())
 
-    new_b.print_board();
 }
