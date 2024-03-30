@@ -77,11 +77,11 @@ impl SubSet {
     }
 
     pub fn indices_missing(&self) -> Vec<u8> {
-        return self.values
+        return self.indices
             .iter()
             .enumerate()
-            .filter(|&(_, &value)| value == 0)
-            .map(|(index, _)|  index as u8)
+            .filter(|&(ii, _)| *self.values.get(ii).unwrap() == 0)
+            .map(|(_, i)| *i)
             .collect();
     }
 
@@ -89,6 +89,10 @@ impl SubSet {
         return (1..=9)
             .filter(|x| !self.contains(x))
             .collect()
+    }
+
+    pub fn has_missing(&self) -> bool {
+        return self.values.contains(&0);
     }
 }
 
@@ -119,6 +123,13 @@ impl Board {
         return Board {
             numbers: current_state,
             history: current_history
+        }
+    }
+
+    pub fn clone(&self) -> Board {
+        return Board {
+            numbers: self.numbers.clone(),
+            history: self.history.clone()
         }
     }
 
@@ -186,21 +197,6 @@ impl Board {
         return true
     }
 
-    pub fn set_in_row(&mut self, n: u8, index: u8, solution: u8) -> bool {
-        let real_index: u8 = n * 9 + index;
-        return self.set(real_index, solution)
-    }
-
-    pub fn set_in_column(&mut self, n: u8, index: u8, solution: u8) -> bool {
-        let real_index: u8 = index * 9 + n;
-        return self.set(real_index, solution)
-    }
-
-    pub fn set_in_quadrant(&mut self, n: u8, index: u8, solution: u8) -> bool {
-        let real_index: u8 = 27 * (n / 3) + 3 * (n % 3) + (index / 3) * 9 + (index % 3);
-        return self.set(real_index, solution)
-    }
-
     pub fn row(&self, i: u8) -> SubSet {
         return SubSet::from_board(self, i, &IndexFormulas::row)
     }
@@ -248,3 +244,11 @@ impl Board {
     }
 
 }
+
+
+impl PartialEq for Board {
+    fn eq(&self, other: &Self) -> bool {
+        return self.history == other.history
+    }
+}
+
