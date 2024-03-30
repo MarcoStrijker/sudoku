@@ -10,7 +10,7 @@ impl IndexFormulas {
     }
 
     // Now a static method
-    fn quadrant(i: u8, iter: u8) -> u8 {
+    fn block(i: u8, iter: u8) -> u8 {
         27 * (i / 3) + 3 * (i % 3) + (iter / 3) * 9 + (iter % 3)
     }
 }
@@ -26,22 +26,22 @@ impl BoardIndexFormulas {
         i % 9 + 9 * iter
     }
 
-    fn quadrant(i: u8, iter: u8) -> u8 {
+    fn block(i: u8, iter: u8) -> u8 {
         // This can now be called as expected
-        IndexFormulas::quadrant(i / 3 - i / 9 * 3 + i / 27 * 3, iter)
+        IndexFormulas::block(i / 3 - i / 9 * 3 + i / 27 * 3, iter)
     }
 }
 
 
-pub struct SubSet {
+pub struct Subset {
     pub index: u8,
     pub indices: Vec<u8>,
     pub values: Vec<u8>
 }
 
 
-impl SubSet {
-    fn from_board(board: &Board, i: u8, func: &dyn Fn(u8, u8) -> u8) -> SubSet {
+impl Subset {
+    fn from_board(board: &Board, i: u8, func: &dyn Fn(u8, u8) -> u8) -> Subset {
         /// Initializes a subset of Cells from a board instance based on the requested
         /// index and passed function. Eligible functions can be found in IndexFormulas
         /// and BoardIndexFormulas
@@ -54,8 +54,8 @@ impl SubSet {
         ///     func (&dyn Fn(u8, u8) -> u8): formula that determines the cells
         ///
         /// Returns:
-        ///     SubSet
-        return SubSet {
+        ///     Subset
+        return Subset {
             index: i,
             indices: (0..9).map(|x| func(i, x)).collect(),
             values: (0..9).map(|x| board.numbers[usize::from(func(i, x))]).collect()
@@ -197,33 +197,33 @@ impl Board {
         return true
     }
 
-    pub fn row(&self, i: u8) -> SubSet {
-        return SubSet::from_board(self, i, &IndexFormulas::row)
+    pub fn row(&self, i: u8) -> Subset {
+        return Subset::from_board(self, i, &IndexFormulas::row)
     }
 
-    pub fn column(&self, i: u8) -> SubSet {
-        return SubSet::from_board(self, i, &IndexFormulas::column)
+    pub fn column(&self, i: u8) -> Subset {
+        return Subset::from_board(self, i, &IndexFormulas::column)
     }
 
-    pub fn quadrant(&self, i: u8) -> SubSet {
-        return SubSet::from_board(self, i, &IndexFormulas::quadrant)
+    pub fn block(&self, i: u8) -> Subset {
+        return Subset::from_board(self, i, &IndexFormulas::block)
     }
 
-    pub fn row_from_index(&self, i: u8) -> SubSet {
-        return SubSet::from_board(self, i, &BoardIndexFormulas::row)
+    pub fn row_from_index(&self, i: u8) -> Subset {
+        return Subset::from_board(self, i, &BoardIndexFormulas::row)
     }
 
-    pub fn column_from_index(&self, i: u8) -> SubSet {
-        return SubSet::from_board(self, i, &BoardIndexFormulas::column)
+    pub fn column_from_index(&self, i: u8) -> Subset {
+        return Subset::from_board(self, i, &BoardIndexFormulas::column)
     }
 
-    pub fn quadrant_from_index(&self, i: u8) -> SubSet {
-        return SubSet::from_board(self, i, &BoardIndexFormulas::quadrant)
+    pub fn block_from_index(&self, i: u8) -> Subset {
+        return Subset::from_board(self, i, &BoardIndexFormulas::block)
     }
 
     pub fn validate(&self, index: u8, solution: u8) -> bool {
         // println!("Validating {:?}, at {:?}", solution, index);
-        if self.quadrant_from_index(index).contains(&solution) {
+        if self.block_from_index(index).contains(&solution) {
             // println!("Q");
             return false
         }

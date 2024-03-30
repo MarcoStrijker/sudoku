@@ -7,16 +7,16 @@ trait Solver {
     fn solve(&self, board: Board) -> Board;
 }
 
-struct MissingCell;
-struct InferenceMissingCellsLine;
-struct InferenceQuadrant;
+struct LastCel;
+struct LastRemainingCellLine;
+struct LastRemainingCellBlock;
 
-impl Solver for MissingCell {
+impl Solver for LastCel {
     fn solve(&self, mut board: Board) -> Board {
         let mut num: u8;
         let mut index: u8;
         let mut valid: bool;
-        let mut subset: SubSet;
+        let mut subset: Subset;
         let mut missing_values: Vec<u8>;
 
         for i in 0..8 {
@@ -50,7 +50,7 @@ impl Solver for MissingCell {
         }
 
         for i in 0..8 {
-            subset = board.quadrant(i);
+            subset = board.block(i);
             missing_values = subset.values_missing();
             if missing_values.len() != 1 {
                 continue
@@ -68,7 +68,7 @@ impl Solver for MissingCell {
 }
 
 
-impl Solver for InferenceMissingCellsLine {
+impl Solver for LastRemainingCellLine {
     fn solve(&self, mut board: Board) -> Board {
         let mut missing_values: Vec<u8>;
         let mut missing_indices: Vec<u8>;
@@ -126,20 +126,19 @@ impl Solver for InferenceMissingCellsLine {
 }
 
 
-impl Solver for InferenceQuadrant {
+impl Solver for LastRemainingCellBlock {
     fn solve(&self, mut board: Board) -> Board {
         let mut missing_indices;
         let mut missing_values;
-        let mut subset: SubSet;
+        let mut subset: Subset;
 
-        let mut column: SubSet;
-        let mut row: SubSet;
+        let mut column: Subset;
+        let mut row: Subset;
         let mut valid_spots: Vec<u8>;
 
         for i in 0..9 {
-
             // Check if anything needs to be solved
-            subset = board.quadrant(i);
+            subset = board.block(i);
             if !subset.has_missing() {
                 continue
             }
@@ -225,6 +224,7 @@ fn brute_force(mut board: Board) -> Board {
     return board
 }
 
+
 fn main() {
     let start = String::from("065370002000001370000640800097004028080090001100020940040006700070018050230900060");
     // let end = String::from("695127304138459672724836915851264739273981546946573821317692458489715263562348197");
@@ -233,7 +233,7 @@ fn main() {
     let mut old_b: Board = b.clone();
     let mut new_b: Board;
     for i in 0..100 {
-        old_b = InferenceQuadrant.solve(old_b);
+        old_b = InferenceBlock.solve(old_b);
     }
     // old_b.print_board()
     println!("{:?}", old_b.to_string())
