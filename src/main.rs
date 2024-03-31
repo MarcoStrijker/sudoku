@@ -1,7 +1,7 @@
 mod lib;
-
-use std::cmp::PartialEq;
 use lib::*;
+
+use std::fs;
 
 trait OneStepSolver {
     fn solve(&self, board: Board) -> Board;
@@ -29,7 +29,7 @@ impl OneStepSolver for LastCel {
             }
             num = *missing_values.get(0).unwrap();
             index = *subset.indices_missing().get(0).unwrap();
-            valid = board.set(index, num);
+            valid = board.try_set(index, num);
             if !valid {
                 continue
             }
@@ -44,7 +44,7 @@ impl OneStepSolver for LastCel {
             }
             num = *missing_values.get(0).unwrap();
             index = *subset.indices_missing().get(0).unwrap();
-            valid = board.set(index, num);
+            valid = board.try_set(index, num);
             if !valid {
                 continue
             }
@@ -59,7 +59,7 @@ impl OneStepSolver for LastCel {
             }
             num = *missing_values.get(0).unwrap();
             index = *subset.indices_missing().get(0).unwrap();
-            valid = board.set(index, num);
+            valid = board.try_set(index, num);
             if !valid {
                 continue
             }
@@ -94,7 +94,7 @@ impl OneStepSolver for LastRemainingCellLine {
                 }
 
                 if possible.len() == 1 {
-                    board.set(*possible.get(0).unwrap(), val);
+                    board.try_set(*possible.get(0).unwrap(), val);
                     return board
                 }
             }
@@ -117,7 +117,7 @@ impl OneStepSolver for LastRemainingCellLine {
                 }
 
                 if possible.len() == 1 {
-                    board.set(*possible.get(0).unwrap(), val);
+                    board.try_set(*possible.get(0).unwrap(), val);
                     return board
                 }
             }
@@ -171,7 +171,7 @@ impl OneStepSolver for LastRemainingCellBlock {
 
                 // If only one spot is valid, we know the solution
                 if valid_spots.len() == 1 {
-                    board.set(*valid_spots.get(0).unwrap(), val);
+                    board.try_set(*valid_spots.get(0).unwrap(), val);
                     return board
                 }
             }
@@ -209,7 +209,7 @@ fn brute_force(mut board: Board) -> Board {
             continue
         }
 
-        valid = board.set(current_index_board, current_solution + addition);
+        valid = board.try_set(current_index_board, current_solution + addition);
 
         if !valid {
             addition += 1;
@@ -226,13 +226,29 @@ fn brute_force(mut board: Board) -> Board {
     return board
 }
 
+fn import_puzzles_from_file() -> Vec<Vec<String>> {
+    // Returns a vector with vectors, containing the puzzle
+    // and solution of that puzzle
+    return fs::read_to_string(r"puzzles.txt")
+        .expect("It should read the file")
+        .lines()
+        .map(|x| x.to_string())
+        .collect::<Vec<_>>()
+        .iter()
+        .map(|x| x
+            .split(", ")
+            .map(|x| x
+                .to_string())
+            .collect())
+        .collect();
+}
+
 
 impl OneStepSolver for LastPossibleNumber {
     fn solve(&self, mut board: Board) -> Board {
         let mut values_in_rows: Subset;
         let mut values_in_columns: Subset;
         let mut union: Vec<u8>;
-        let mut solution: u8;
 
         for i in board.blanks() {
             values_in_rows = board.row_from_index(i);
@@ -246,7 +262,8 @@ impl OneStepSolver for LastPossibleNumber {
                 if !union.contains(&ii) {
                    continue
                 }
-                board.set(i, ii);
+                board.try_set(i, ii);
+                println!("I've solved something");
                 return board
             }
         }
@@ -255,17 +272,28 @@ impl OneStepSolver for LastPossibleNumber {
     }
 }
 
-fn main() {
-    let start = String::from("065370002000001370000640800097004028080090001100020940040006700070018050230900060");
-    // let end = String::from("695127304138459672724836915851264739273981546946573821317692458489715263562348197");
-    let b = Board::from_string(&start);
-    b.print_board();
-    let mut old_b: Board = b.clone();
-    let mut new_b: Board;
-    for i in 0..100 {
-        old_b = LastPossibleNumber.solve(old_b);
-    }
-    // old_b.print_board()
-    println!("{:?}", old_b.to_string())
 
+fn main() {
+
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn full() {
+        let mut board: Board;
+        let puzzles = import_puzzles_from_file();
+
+        for puzzle in puzzles {
+            board = Board::from_string(puzzle.get(0).unwrap());
+
+            for _ in 0..100 {
+                board = LastRemainingCellBlock.solve(board);
+            }
+
+            assert_eq!(board.to_string().eq(puzzle.get(1).unwrap()));
+        }
+    }
 }
