@@ -3,15 +3,17 @@ mod lib;
 use std::cmp::PartialEq;
 use lib::*;
 
-trait Solver {
+trait OneStepSolver {
     fn solve(&self, board: Board) -> Board;
 }
 
 struct LastCel;
 struct LastRemainingCellLine;
 struct LastRemainingCellBlock;
+struct LastPossibleNumber;
 
-impl Solver for LastCel {
+
+impl OneStepSolver for LastCel {
     fn solve(&self, mut board: Board) -> Board {
         let mut num: u8;
         let mut index: u8;
@@ -68,7 +70,7 @@ impl Solver for LastCel {
 }
 
 
-impl Solver for LastRemainingCellLine {
+impl OneStepSolver for LastRemainingCellLine {
     fn solve(&self, mut board: Board) -> Board {
         let mut missing_values: Vec<u8>;
         let mut missing_indices: Vec<u8>;
@@ -126,7 +128,7 @@ impl Solver for LastRemainingCellLine {
 }
 
 
-impl Solver for LastRemainingCellBlock {
+impl OneStepSolver for LastRemainingCellBlock {
     fn solve(&self, mut board: Board) -> Board {
         let mut missing_indices;
         let mut missing_values;
@@ -225,6 +227,34 @@ fn brute_force(mut board: Board) -> Board {
 }
 
 
+impl OneStepSolver for LastPossibleNumber {
+    fn solve(&self, mut board: Board) -> Board {
+        let mut values_in_rows: Subset;
+        let mut values_in_columns: Subset;
+        let mut union: Vec<u8>;
+        let mut solution: u8;
+
+        for i in board.blanks() {
+            values_in_rows = board.row_from_index(i);
+            values_in_columns = board.column_from_index(i);
+            union = values_in_rows.union(&values_in_columns);
+            if union.len() != 8 {
+                continue
+            }
+
+            for ii in (1..=9) {
+                if !union.contains(&ii) {
+                   continue
+                }
+                board.set(i, ii);
+                return board
+            }
+        }
+
+        return board
+    }
+}
+
 fn main() {
     let start = String::from("065370002000001370000640800097004028080090001100020940040006700070018050230900060");
     // let end = String::from("695127304138459672724836915851264739273981546946573821317692458489715263562348197");
@@ -233,7 +263,7 @@ fn main() {
     let mut old_b: Board = b.clone();
     let mut new_b: Board;
     for i in 0..100 {
-        old_b = InferenceBlock.solve(old_b);
+        old_b = LastPossibleNumber.solve(old_b);
     }
     // old_b.print_board()
     println!("{:?}", old_b.to_string())
