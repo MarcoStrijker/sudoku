@@ -34,7 +34,6 @@ impl BoardIndexFormulas {
 
 
 pub struct Subset {
-    pub index: u8,
     pub indices: Vec<u8>,
     pub values: Vec<u8>
 }
@@ -56,7 +55,6 @@ impl Subset {
         /// Returns:
         ///     Subset
         return Subset {
-            index: i,
             indices: (0..9).map(|x| func(i, x)).collect(),
             values: (0..9).map(|x| board.numbers[usize::from(func(i, x))]).collect()
         }
@@ -93,6 +91,25 @@ impl Subset {
 
     pub fn has_missing(&self) -> bool {
         return self.values.contains(&0);
+    }
+
+    pub fn union(&self, other: &Self) -> Vec<u8> {
+        /// Returns all unique solved values that are in self or other
+        ///
+        /// Args:
+        ///     other (Subset): The other subset
+        ///
+        /// Returns:
+        ///     A vector containing the solved values
+        let mut union: Vec<u8> = self.values.clone();
+        for v in other.values.clone() {
+            if v != 0 || union.contains(&v) {
+                continue
+            }
+            union.push(v)
+        }
+
+        return union;
     }
 }
 
