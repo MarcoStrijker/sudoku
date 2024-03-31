@@ -2,6 +2,7 @@ enum IndexFormulas{}
 
 impl IndexFormulas {
     fn row(i: u8, iter: u8) -> u8 {
+
         i * 9 + iter
     }
 
@@ -32,6 +33,18 @@ impl BoardIndexFormulas {
     }
 }
 
+
+trait  SolveProbabilities {
+    fn calulate(board: &mut Board);
+}
+
+struct Naked;
+
+impl SolveProbabilities for Naked {
+    fn calulate(board: &mut Board) {
+
+    }
+}
 
 pub struct Subset {
     pub indices: Vec<u8>,
@@ -124,23 +137,17 @@ impl Board {
 
     const ZERO: u8 = 0;
 
-    fn new() -> Board {
-        return Board {
-            numbers: vec![0; 80],
-            history: Vec::new()
-        }
-    }
-
     pub fn from_string(str: &String) -> Board {
         let current_state: Vec<u8> = str
             .chars()
             .map(|c| c.to_digit(10).unwrap() as u8)
             .collect();
         let current_history: Vec<Vec<u8>> =  vec![current_state.clone()];
+
         return Board {
             numbers: current_state,
-            history: current_history
-        }
+            history: current_history,
+        };
     }
 
     pub fn clone(&self) -> Board {
@@ -197,20 +204,52 @@ impl Board {
     }
 
     pub fn get(&self, index: u8) -> u8 {
+        /// Get the value of a cell, naturally cannot exceed 80
+        ///
+        /// Args:
+        ///     index (u8): the index of the cell
+        ///
+        /// Returns:
+        ///     The value of the cell (u8)
+        if index > 80 {
+            panic!("You've tried getting a number with a to high index. Not allowed")
+        }
         return self.numbers[index as usize]
     }
 
-    pub fn set(&mut self, index: u8, solution: u8) -> bool {
+    fn set(&mut self, index: u8, solution: u8) {
+        // Sets a solution into a cell. Changes the numbers and add the change to the history
+        //
+        // Args:
+        //     index (u8): the index on the board in which you want the solution to be placed
+        //     solution (u8): The solution 1-9
+        //
+        self.numbers[index as usize] = solution;
+        self.history.insert(self.history.len(), self.numbers.clone());
+    }
+
+    pub fn try_set(&mut self, index: u8, solution: u8) -> bool {
+        /// Try to set a solution into a cell
+        ///
+        /// Args:
+        ///     index (u8): the index on the board in which you want the solution to be placed
+        ///     solution (u8): The solution 1-9
+        ///
+        /// Returns:
+        ///     true if the set is valid, false if not (bool)
+        ///
         if index > 80 {
-            panic!("An set on a index higher than 80")
+            panic!("You've tried setting a number with a to high index. Not allowed")
         }
 
+        // Check if the set is according to the sudoku rules
+        // Check for conflicts in ros, column, and block
         if !self.validate(index, solution) {
             return false;
         }
 
-        self.numbers[index as usize] = solution;
-        self.history.insert(self.history.len(), self.numbers.clone());
+        // Set the solution
+        self.set(index, solution);
         return true
     }
 
@@ -238,26 +277,19 @@ impl Board {
         return Subset::from_board(self, i, &BoardIndexFormulas::block)
     }
 
-    pub fn validate(&self, index: u8, solution: u8) -> bool {
-        // println!("Validating {:?}, at {:?}", solution, index);
-        if self.block_from_index(index).contains(&solution) {
-            // println!("Q");
-            return false
-        }
-        if self.row_from_index(index).contains(&solution) {
-            // println!("R");
-            return false
-        }
-        if self.column_from_index(index).contains(&solution) {
-            // println!("C");
-            return false
-        }
-        return true
+    fn validate(&self, index: u8, solution: u8) -> bool {
+        return !(self.block_from_index(index).contains(&solution)
+            || self.row_from_index(index).contains(&solution)
+            || self.column_from_index(index).contains(&solution))
     }
 
     pub fn solved(&self) -> bool {
-        // TODO: < 405
-        return !self.numbers.contains(&Self::ZERO)
+        /// Checks if Zero is present in number, if so, the puzzle is not solved
+        ///
+        /// Returns:
+        ///     true is the puzzle is solved, false if not
+        ///
+        return !self.numbers.contains(&0)
     }
 
 }
