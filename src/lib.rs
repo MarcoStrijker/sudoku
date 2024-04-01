@@ -48,7 +48,8 @@ impl SolveProbabilities for Naked {
 
 pub struct Subset {
     pub indices: Vec<u8>,
-    pub values: Vec<u8>
+    pub values: Vec<u8>,
+    pub probabilities: Vec<Vec<u8>>
 }
 
 
@@ -69,7 +70,13 @@ impl Subset {
         ///     Subset
         return Subset {
             indices: (0..9).map(|x| func(i, x)).collect(),
-            values: (0..9).map(|x| board.numbers[usize::from(func(i, x))]).collect()
+            values: (0..9)
+                .map(|x| board.numbers[usize::from(func(i, x))])
+                .collect(),
+            probabilities: (0..9)
+                // TODO: Optimize
+                .map(|x| board.probabilities[usize::from(func(i, x))].clone())
+                .collect()
         }
     }
 
@@ -129,13 +136,12 @@ impl Subset {
 
 pub struct Board {
     pub numbers: Vec<u8>,
-    pub history: Vec<Vec<u8>>
+    pub history: Vec<Vec<u8>>,
+    pub probabilities: Vec<Vec<u8>>
 }
 
 
 impl Board {
-
-    const ZERO: u8 = 0;
 
     pub fn from_string(str: &String) -> Board {
         let current_state: Vec<u8> = str
@@ -143,19 +149,29 @@ impl Board {
             .map(|c| c.to_digit(10).unwrap() as u8)
             .collect();
         let current_history: Vec<Vec<u8>> =  vec![current_state.clone()];
-
+        let current_probabilities = current_state
+            .iter()
+            .map(|x| if *x == 0 {vec![0]} else {vec![1; 9]})
+            .collect();
         return Board {
             numbers: current_state,
             history: current_history,
+            probabilities: current_probabilities
         };
     }
 
     pub fn clone(&self) -> Board {
         return Board {
             numbers: self.numbers.clone(),
-            history: self.history.clone()
+            history: self.history.clone(),
+            probabilities: self.probabilities.clone()
         }
     }
+
+    pub fn calculate_probabilities(&mut self, func: &dyn Fn(&mut Board)) {
+
+    }
+
 
     pub fn to_string(&self) -> String {
         return self.numbers
