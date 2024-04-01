@@ -23,7 +23,7 @@ mod tests {
         let puzzles = utils::import_puzzles_from_file();
 
         for puzzle in puzzles {
-            board = lib::Board::from_string(puzzle.get(0).unwrap());
+            board = Board::from_string(puzzle.get(0).unwrap());
 
             for _ in 0..100 {
                 board = LastRemainingCellBlock.solve(board);
