@@ -1,7 +1,7 @@
 use crate::lib::*;
 
 
-pub trait OneStepSolver {
+pub trait DirectSolvers {
     fn solve(&self, board: Board) -> Board;
 }
 
@@ -11,7 +11,7 @@ pub struct LastRemainingCellBlock;
 struct LastPossibleNumber;
 
 
-impl OneStepSolver for LastCel {
+impl DirectSolvers for LastCel {
     fn solve(&self, mut board: Board) -> Board {
         let mut num: u8;
         let mut index: u8;
@@ -25,8 +25,8 @@ impl OneStepSolver for LastCel {
             if missing_values.len() != 1 {
                 continue
             }
-            num = *missing_values.get(0).unwrap();
-            index = *subset.indices_missing().get(0).unwrap();
+            num = missing_values[0];
+            index = subset.indices_missing()[0];
             valid = board.try_set(index, num);
             if !valid {
                 continue
@@ -40,8 +40,8 @@ impl OneStepSolver for LastCel {
             if missing_values.len() != 1 {
                 continue
             }
-            num = *missing_values.get(0).unwrap();
-            index = *subset.indices_missing().get(0).unwrap();
+            num = missing_values[0];
+            index = subset.indices_missing()[0];
             valid = board.try_set(index, num);
             if !valid {
                 continue
@@ -55,8 +55,8 @@ impl OneStepSolver for LastCel {
             if missing_values.len() != 1 {
                 continue
             }
-            num = *missing_values.get(0).unwrap();
-            index = *subset.indices_missing().get(0).unwrap();
+            num = missing_values[0];
+            index = subset.indices_missing()[0];
             valid = board.try_set(index, num);
             if !valid {
                 continue
@@ -68,14 +68,14 @@ impl OneStepSolver for LastCel {
 }
 
 
-impl OneStepSolver for LastRemainingCellLine {
+impl DirectSolvers for LastRemainingCellLine {
     fn solve(&self, mut board: Board) -> Board {
         let mut missing_values: Vec<u8>;
         let mut missing_indices: Vec<u8>;
         let mut possible: Vec<u8>;
 
         // Look through rows
-        for i in (0..9) {
+        for i in 0..9 {
             missing_values = board.row(i).values_missing();
             if missing_values.is_empty() {
                 continue
@@ -92,7 +92,7 @@ impl OneStepSolver for LastRemainingCellLine {
                 }
 
                 if possible.len() == 1 {
-                    board.try_set(*possible.get(0).unwrap(), val);
+                    board.try_set(possible[0], val);
                     return board
                 }
             }
@@ -115,7 +115,7 @@ impl OneStepSolver for LastRemainingCellLine {
                 }
 
                 if possible.len() == 1 {
-                    board.try_set(*possible.get(0).unwrap(), val);
+                    board.try_set(possible[0], val);
                     return board
                 }
             }
@@ -126,14 +126,9 @@ impl OneStepSolver for LastRemainingCellLine {
 }
 
 
-impl OneStepSolver for LastRemainingCellBlock {
+impl DirectSolvers for LastRemainingCellBlock {
     fn solve(&self, mut board: Board) -> Board {
-        let mut missing_indices;
-        let mut missing_values;
         let mut subset: Subset;
-
-        let mut column: Subset;
-        let mut row: Subset;
         let mut valid_spots: Vec<u8>;
 
         for i in 0..9 {
@@ -143,33 +138,25 @@ impl OneStepSolver for LastRemainingCellBlock {
                 continue
             }
 
-            // Get indices and values of the cells
-            missing_indices = subset.indices_missing();
-            missing_values = subset.values_missing();
-
-            for val in missing_values {
+            for val in subset.values_missing() {
                 // Collect th valid spots
                 // At the end, there will be checked if only
                 // one spot is valid, this is the one we're interested in
                 valid_spots = Vec::<u8>::new();
-                for ii in &missing_indices {
-                    row = board.row_from_index(*ii);
-                    if row.contains(&val) {
-                        continue
-                    }
-                    column = board.column_from_index(*ii);
-                    if column.contains(&val) {
+                for ii in subset.indices_missing() {
+                    if board.row_from_index(ii).contains(&val)
+                        || board.column_from_index(ii).contains(&val) {
                         continue
                     }
 
                     // If missing values not in the row and column
                     // of the cell, then it is a valid spot for the solution
-                    valid_spots.push(*ii);
+                    valid_spots.push(ii);
                 }
 
                 // If only one spot is valid, we know the solution
                 if valid_spots.len() == 1 {
-                    board.try_set(*valid_spots.get(0).unwrap(), val);
+                    board.try_set(valid_spots[0], val);
                     return board
                 }
             }
@@ -178,7 +165,7 @@ impl OneStepSolver for LastRemainingCellBlock {
     }
 }
 
-impl OneStepSolver for LastPossibleNumber {
+impl DirectSolvers for LastPossibleNumber {
     fn solve(&self, mut board: Board) -> Board {
         let mut values_in_rows: Subset;
         let mut values_in_columns: Subset;
@@ -192,7 +179,7 @@ impl OneStepSolver for LastPossibleNumber {
                 continue
             }
 
-            for ii in (1..=9) {
+            for ii in 1..=9 {
                 if !union.contains(&ii) {
                    continue
                 }
@@ -202,5 +189,18 @@ impl OneStepSolver for LastPossibleNumber {
         }
 
         return board
+    }
+}
+
+
+trait SolveProbabilities {
+    fn calculate(board: &mut Board) -> Board;
+}
+
+struct Naked;
+
+impl SolveProbabilities for Naked {
+    fn calculate(board: &mut Board) -> Board {
+        return board.clone()
     }
 }

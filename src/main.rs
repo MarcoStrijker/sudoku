@@ -5,7 +5,7 @@ mod utils;
 
 use crate::lib::Board;
 
-use crate::solvers::{OneStepSolver, LastRemainingCellBlock};
+use crate::solvers::{DirectSolvers, LastRemainingCellBlock};
 
 
 
@@ -23,13 +23,13 @@ mod tests {
         let puzzles = utils::import_puzzles_from_file();
 
         for puzzle in puzzles {
-            board = Board::from_string(puzzle.get(0).unwrap());
+            board = Board::from_string(&puzzle[0]);
 
             for _ in 0..100 {
                 board = LastRemainingCellBlock.solve(board);
             }
 
-            assert_eq!(board.to_string(), *puzzle.get(1).unwrap());
+            assert_eq!(board.to_string(), puzzle[1]);
         }
     }
 }

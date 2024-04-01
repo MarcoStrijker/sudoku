@@ -1,19 +1,11 @@
 enum IndexFormulas{}
 
 impl IndexFormulas {
-    fn row(i: u8, iter: u8) -> u8 {
-
-        i * 9 + iter
-    }
-
+    fn row(i: u8, iter: u8) -> u8 { i * 9 + iter }
     fn column(i: u8, iter: u8) -> u8 {
         iter * 9 + i
     }
-
-    // Now a static method
-    fn block(i: u8, iter: u8) -> u8 {
-        27 * (i / 3) + 3 * (i % 3) + (iter / 3) * 9 + (iter % 3)
-    }
+    fn block(i: u8, iter: u8) -> u8 { 27 * (i / 3) + 3 * (i % 3) + (iter / 3) * 9 + (iter % 3) }
 }
 
 enum BoardIndexFormulas{}
@@ -22,29 +14,12 @@ impl BoardIndexFormulas {
     fn row(i: u8, iter: u8) -> u8 {
         (i / 9) * 9 + iter
     }
-
     fn column(i: u8, iter: u8) -> u8 {
         i % 9 + 9 * iter
     }
-
-    fn block(i: u8, iter: u8) -> u8 {
-        // This can now be called as expected
-        IndexFormulas::block(i / 3 - i / 9 * 3 + i / 27 * 3, iter)
-    }
+    fn block(i: u8, iter: u8) -> u8 { IndexFormulas::block(i / 3 - i / 9 * 3 + i / 27 * 3, iter) }
 }
 
-
-trait  SolveProbabilities {
-    fn calulate(board: &mut Board);
-}
-
-struct Naked;
-
-impl SolveProbabilities for Naked {
-    fn calulate(board: &mut Board) {
-
-    }
-}
 
 pub struct Subset {
     pub indices: Vec<u8>,
@@ -98,7 +73,7 @@ impl Subset {
         return self.indices
             .iter()
             .enumerate()
-            .filter(|&(ii, _)| *self.values.get(ii).unwrap() == 0)
+            .filter(|&(ii, _)| self.values[ii] == 0)
             .map(|(_, i)| *i)
             .collect();
     }
