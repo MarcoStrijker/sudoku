@@ -194,13 +194,63 @@ impl DirectSolvers for LastPossibleNumber {
 
 
 trait SolveProbabilities {
+
     fn calculate(board: &mut Board) -> Board;
+}
+
+struct IntersectionRemoval;
+
+impl SolveProbabilities for IntersectionRemoval {
+    fn calculate(board: &mut Board) -> Board {
+        for i in board.blanks() {
+            for ii in board.row_from_index(i).values_solved() {
+                &board.probabilities[i as usize].remove(ii as usize);
+            }
+            for ii in board.column_from_index(i).values_solved() {
+                &board.probabilities[i as usize].remove(ii as usize);
+            }
+            for ii in board.block_from_index(i).values_solved() {
+                &board.probabilities[i as usize].remove(ii as usize);
+            }
+        }
+        return board.clone();
+    }
 }
 
 struct Naked;
 
 impl SolveProbabilities for Naked {
     fn calculate(board: &mut Board) -> Board {
-        return board.clone()
+        for i in 0..9 {
+            let mut subset = board.row_from_index(i);
+            let mut new_probabilities = Vec::new();
+            for (ii, probabilities) in subset.probabilities.iter().enumerate() {
+                if probabilities.len() != 2 {
+                    new_probabilities.push(probabilities.clone());
+                    continue;
+                }
+
+                let count = subset.probabilities
+                    .iter()
+                    .filter(|&x| x == probabilities)
+                    .count();
+
+                if count != 2 {
+                    new_probabilities.push(probabilities.clone());
+                    continue;
+                }
+
+                let new_probability = probabilities
+                    .iter()
+                    .filter(|x| !subset.probabilities.iter().any(|p| p != probabilities && p.contains(x)))
+                    .cloned()
+                    .collect();
+
+                new_probabilities.push(new_probability);
+            }
+            subset.probabilities = new_probabilities;
+        }
+
+        board.clone()
     }
 }
