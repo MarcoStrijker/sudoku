@@ -78,6 +78,12 @@ impl Subset {
             .collect();
     }
 
+    pub fn values_solved(&self) -> Vec<u8> {
+        return (1..=9)
+            .filter(|x| self.contains(x))
+            .collect()
+    }
+
     pub fn values_missing(&self) -> Vec<u8> {
         return (1..=9)
             .filter(|x| !self.contains(x))
