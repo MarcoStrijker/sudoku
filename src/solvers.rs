@@ -202,76 +202,29 @@ pub struct IntersectionRemoval;
 
 impl SolveProbabilities for IntersectionRemoval {
     fn calculate(board: &mut Board) -> Board {
-        let mut subset: Subset;
         let mut values_solved: Vec<u8>;
 
         for i in 0..9 {
-            subset = board.row_from_index(i);
-            values_solved = subset.values_solved();
+            for subset in vec![board.row_from_index(i), board.column_from_index(i), board.block_from_index(i)] {
+                values_solved = subset.values_solved();
 
-            if values_solved.len() == 0 {
-                continue
-            }
-
-            for ii in subset.indices {
-                if board.probabilities[ii as usize].len() == 1 {
+                if values_solved.len() == 0 {
                     continue
                 }
 
-                board.probabilities[ii as usize] = board.probabilities[ii as usize]
-                    .clone()
-                    .iter()
-                    .filter(|x| !values_solved.contains(x))
-                    .map(|x| *x)
-                    .collect();
-            }
+                for ii in subset.indices {
+                    if board.probabilities[ii as usize].len() == 1 {
+                        continue
+                    }
 
-        }
-
-        for i in 0..9 {
-            subset = board.column_from_index(i);
-            values_solved = subset.values_solved();
-
-            if values_solved.len() == 0 {
-                continue
-            }
-
-            for ii in subset.indices {
-                if board.probabilities[ii as usize].len() == 1 {
-                    continue
+                    board.probabilities[ii as usize] = board.probabilities[ii as usize]
+                        .clone()
+                        .iter()
+                        .filter(|x| !values_solved.contains(x))
+                        .map(|x| *x)
+                        .collect();
                 }
-
-                board.probabilities[ii as usize] = board.probabilities[ii as usize]
-                    .clone()
-                    .iter()
-                    .filter(|x| !values_solved.contains(x))
-                    .map(|x| *x)
-                    .collect();
             }
-
-        }
-
-        for i in 0..9 {
-            subset = board.block_from_index(i);
-            values_solved = subset.values_solved();
-
-            if values_solved.len() == 0 {
-                continue
-            }
-
-            for ii in subset.indices {
-                if board.probabilities[ii as usize].len() == 1 {
-                    continue
-                }
-
-                board.probabilities[ii as usize] = board.probabilities[ii as usize]
-                    .clone()
-                    .iter()
-                    .filter(|x| !values_solved.contains(x))
-                    .map(|x| *x)
-                    .collect();
-            }
-
         }
 
         return board.clone();
