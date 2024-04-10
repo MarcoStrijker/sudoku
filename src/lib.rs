@@ -44,7 +44,9 @@ impl Subset {
         /// Returns:
         ///     Subset
         return Subset {
-            indices: (0..9).map(|x| func(i, x)).collect(),
+            indices: (0..9)
+                .map(|x| func(i, x))
+                .collect(),
             values: (0..9)
                 .map(|x| board.numbers[usize::from(func(i, x))])
                 .collect(),
@@ -79,6 +81,10 @@ impl Subset {
     }
 
     pub fn values_solved(&self) -> Vec<u8> {
+        /// Get the values that are solved in Self
+        ///
+        /// Returns:
+        ///     The solved values
         return (1..=9)
             .filter(|x| self.contains(x))
             .collect()
@@ -130,9 +136,13 @@ impl Board {
             .map(|c| c.to_digit(10).unwrap() as u8)
             .collect();
         let current_history: Vec<Vec<u8>> =  vec![current_state.clone()];
+
+        // current_probabilities is the collection of the possible solutions
+        // This will be one number, if the cell is solved
+        // And an array of number when not
         let current_probabilities = current_state
             .iter()
-            .map(|x| if *x == 0 {vec![0]} else {vec![1; 9]})
+            .map(|x| if *x == 0 {vec![1,2,3,4,5,6,7,8,9]} else {vec![*x as u8]})
             .collect();
         return Board {
             numbers: current_state,
@@ -149,9 +159,9 @@ impl Board {
         }
     }
 
-    pub fn calculate_probabilities(&mut self, func: &dyn Fn(&mut Board)) {
-
-    }
+    // pub fn calculate_probabilities(&mut self, func: &dyn Fn(&mut Board)) {
+    //
+    // }
 
 
     pub fn to_string(&self) -> String {
