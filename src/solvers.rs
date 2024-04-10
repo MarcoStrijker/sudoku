@@ -198,9 +198,9 @@ pub trait SolveProbabilities {
     fn calculate(board: &mut Board) -> Board;
 }
 
-pub struct IntersectionRemoval;
+pub struct LastRemainingCell;
 
-impl SolveProbabilities for IntersectionRemoval {
+impl SolveProbabilities for LastRemainingCell {
     fn calculate(board: &mut Board) -> Board {
         let mut values_solved: Vec<u8>;
 
@@ -217,6 +217,7 @@ impl SolveProbabilities for IntersectionRemoval {
                         continue
                     }
 
+                    // Delete solved numbers from cells
                     board.probabilities[ii as usize] = board.probabilities[ii as usize]
                         .clone()
                         .iter()
@@ -231,50 +232,51 @@ impl SolveProbabilities for IntersectionRemoval {
     }
 }
 
-// pub struct Naked;
-//
-// impl SolveProbabilities for Naked {
-//     fn calculate(board: &mut Board) -> Board {
-//         let mut subset: Subset;
-//         let mut count: usize;
-//         let mut new_probabilities: Vec<Vec<u8>>;
-//         let mut new_probability: Vec<u8>;
-//
-//         for i in 0..9 {
-//             subset = board.row_from_index(i);
-//             new_probabilities = Vec::new();
-//             for (_, probabilities) in subset.probabilities.iter().enumerate() {
-//
-//                 // Currently only naked pairs are supported
-//                 if probabilities.len() != 2 {
-//                     new_probabilities.push(probabilities.clone());
-//                     continue;
-//                 }
-//
-//                 // Count how many cell share the same probabilities
-//                 count = subset.probabilities
-//                     .iter()
-//                     .filter(|&x| x == probabilities)
-//                     .count();
-//
-//                 if count != 2 {
-//                     new_probabilities.push(probabilities.clone());
-//                     continue;
-//                 }
-//
-//                 // Resolve probabilities
-//                 // Delete these specific probabilities
-//                 new_probability = probabilities
-//                     .iter()
-//                     .filter(|x| !subset.probabilities.iter().any(|p| p != probabilities && p.contains(x)))
-//                     .cloned()
-//                     .collect();
-//
-//                 new_probabilities.push(new_probability);
-//             }
-//             subset.probabilities = new_probabilities;
-//         }
-//
-//         return board.clone()
-//     }
-// }
+pub struct Naked;
+
+impl SolveProbabilities for Naked {
+    fn calculate(board: &mut Board) -> Board {
+        let mut subset: Subset;
+        let mut board_index: usize;
+        let mut count: usize;
+        let mut new_probabilities: Vec<Vec<u8>>;
+        let mut new_probability: Vec<u8>;
+
+        for i in 0..9 {
+            for subset in vec![board.row_from_index(i), board.column_from_index(i), board.block_from_index(i)] {
+                new_probabilities = Vec::new();
+                for (ii, probabilities) in subset.probabilities.iter().enumerate() {
+                    board_index = subset.indices[ii] as usize;
+                    // Currently only naked pairs are supported
+                    if probabilities.len() != 2 {
+                        new_probabilities.push(probabilities.clone());
+                        continue;
+                    }
+
+                    // Count how many cell share the same probabilities
+                    count = subset.probabilities
+                        .iter()
+                        .filter(|&x| x == probabilities)
+                        .count();
+
+                    if count != 2 {
+                        new_probabilities.push(probabilities.clone());
+                        continue;
+                    }
+
+                    println!("I will solve");
+
+                    // Resolve probabilities
+                    // Delete these specific probabilities
+                    board.probabilities[board_index] = probabilities
+                        .iter()
+                        .filter(|x| !subset.probabilities[ii].contains(x))
+                        .cloned()
+                        .collect();
+                }
+            }
+        }
+
+        return board.clone()
+    }
+}
