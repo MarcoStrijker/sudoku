@@ -193,64 +193,135 @@ impl DirectSolvers for LastPossibleNumber {
 }
 
 
-trait SolveProbabilities {
+pub trait SolveProbabilities {
 
     fn calculate(board: &mut Board) -> Board;
 }
 
-struct IntersectionRemoval;
+pub struct IntersectionRemoval;
 
 impl SolveProbabilities for IntersectionRemoval {
     fn calculate(board: &mut Board) -> Board {
-        for i in board.blanks() {
-            for ii in board.row_from_index(i).values_solved() {
-                &board.probabilities[i as usize].remove(ii as usize);
+        let mut subset: Subset;
+        let mut values_solved: Vec<u8>;
+
+        for i in 0..9 {
+            subset = board.row_from_index(i);
+            values_solved = subset.values_solved();
+
+            if values_solved.len() == 0 {
+                continue
             }
-            for ii in board.column_from_index(i).values_solved() {
-                &board.probabilities[i as usize].remove(ii as usize);
+
+            for ii in subset.indices {
+                if board.probabilities[ii as usize].len() == 1 {
+                    continue
+                }
+
+                board.probabilities[ii as usize] = board.probabilities[ii as usize]
+                    .clone()
+                    .iter()
+                    .filter(|x| !values_solved.contains(x))
+                    .map(|x| *x)
+                    .collect();
             }
-            for ii in board.block_from_index(i).values_solved() {
-                &board.probabilities[i as usize].remove(ii as usize);
-            }
+
         }
+
+        for i in 0..9 {
+            subset = board.column_from_index(i);
+            values_solved = subset.values_solved();
+
+            if values_solved.len() == 0 {
+                continue
+            }
+
+            for ii in subset.indices {
+                if board.probabilities[ii as usize].len() == 1 {
+                    continue
+                }
+
+                board.probabilities[ii as usize] = board.probabilities[ii as usize]
+                    .clone()
+                    .iter()
+                    .filter(|x| !values_solved.contains(x))
+                    .map(|x| *x)
+                    .collect();
+            }
+
+        }
+
+        for i in 0..9 {
+            subset = board.block_from_index(i);
+            values_solved = subset.values_solved();
+
+            if values_solved.len() == 0 {
+                continue
+            }
+
+            for ii in subset.indices {
+                if board.probabilities[ii as usize].len() == 1 {
+                    continue
+                }
+
+                board.probabilities[ii as usize] = board.probabilities[ii as usize]
+                    .clone()
+                    .iter()
+                    .filter(|x| !values_solved.contains(x))
+                    .map(|x| *x)
+                    .collect();
+            }
+
+        }
+
         return board.clone();
     }
 }
 
-struct Naked;
-
-impl SolveProbabilities for Naked {
-    fn calculate(board: &mut Board) -> Board {
-        for i in 0..9 {
-            let mut subset = board.row_from_index(i);
-            let mut new_probabilities = Vec::new();
-            for (ii, probabilities) in subset.probabilities.iter().enumerate() {
-                if probabilities.len() != 2 {
-                    new_probabilities.push(probabilities.clone());
-                    continue;
-                }
-
-                let count = subset.probabilities
-                    .iter()
-                    .filter(|&x| x == probabilities)
-                    .count();
-
-                if count != 2 {
-                    new_probabilities.push(probabilities.clone());
-                    continue;
-                }
-
-                let new_probability = probabilities
-                    .iter()
-                    .filter(|x| !subset.probabilities.iter().any(|p| p != probabilities && p.contains(x)))
-                    .cloned()
-                    .collect();
-
-                new_probabilities.push(new_probability);
-            }
-            subset.probabilities = new_probabilities;
-        }
-
-        board.clone()
-    }
-}
+// pub struct Naked;
+//
+// impl SolveProbabilities for Naked {
+//     fn calculate(board: &mut Board) -> Board {
+//         let mut subset: Subset;
+//         let mut count: usize;
+//         let mut new_probabilities: Vec<Vec<u8>>;
+//         let mut new_probability: Vec<u8>;
+//
+//         for i in 0..9 {
+//             subset = board.row_from_index(i);
+//             new_probabilities = Vec::new();
+//             for (_, probabilities) in subset.probabilities.iter().enumerate() {
+//
+//                 // Currently only naked pairs are supported
+//                 if probabilities.len() != 2 {
+//                     new_probabilities.push(probabilities.clone());
+//                     continue;
+//                 }
+//
+//                 // Count how many cell share the same probabilities
+//                 count = subset.probabilities
+//                     .iter()
+//                     .filter(|&x| x == probabilities)
+//                     .count();
+//
+//                 if count != 2 {
+//                     new_probabilities.push(probabilities.clone());
+//                     continue;
+//                 }
+//
+//                 // Resolve probabilities
+//                 // Delete these specific probabilities
+//                 new_probability = probabilities
+//                     .iter()
+//                     .filter(|x| !subset.probabilities.iter().any(|p| p != probabilities && p.contains(x)))
+//                     .cloned()
+//                     .collect();
+//
+//                 new_probabilities.push(new_probability);
+//             }
+//             subset.probabilities = new_probabilities;
+//         }
+//
+//         return board.clone()
+//     }
+// }
