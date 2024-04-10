@@ -51,7 +51,6 @@ impl Subset {
                 .map(|x| board.numbers[usize::from(func(i, x))])
                 .collect(),
             probabilities: (0..9)
-                // TODO: Optimize
                 .map(|x| board.probabilities[usize::from(func(i, x))].clone())
                 .collect()
         }
@@ -68,14 +67,13 @@ impl Subset {
         ///     True if the value is in self.values
         ///
         return self.values.contains(value)
-
     }
 
     pub fn indices_missing(&self) -> Vec<u8> {
         return self.indices
             .iter()
             .enumerate()
-            .filter(|&(ii, _)| self.values[ii] == 0)
+            .filter(|&(ii, _)| self.probabilities[ii].len() > 1)
             .map(|(_, i)| *i)
             .collect();
     }
@@ -85,8 +83,10 @@ impl Subset {
         ///
         /// Returns:
         ///     The solved values
-        return (1..=9)
-            .filter(|x| self.contains(x))
+        return self.probabilities
+            .iter()
+            .filter(|p| p.len() == 1)
+            .map(|p| p[0])
             .collect()
     }
 
@@ -97,7 +97,11 @@ impl Subset {
     }
 
     pub fn has_missing(&self) -> bool {
-        return self.values.contains(&0);
+        return self.probabilities
+            .iter()
+            .filter(|p| p.len() > 1)
+            .count()
+            > 0
     }
 
     pub fn union(&self, other: &Self) -> Vec<u8> {
@@ -159,22 +163,36 @@ impl Board {
         }
     }
 
-    // pub fn calculate_probabilities(&mut self, func: &dyn Fn(&mut Board)) {
-    //
-    // }
+    pub fn convert_probabilities_to_solution(&mut self) {
+        for (i, number) in self.numbers.iter_mut().enumerate() {
+            if *number != 0 {
+                continue
+            }
 
+            if self.probabilities[i].len() != 1 {
+                continue
+            }
+
+            *number = self.probabilities[i][0]
+        }
+    }
 
     pub fn to_string(&self) -> String {
-        return self.numbers
+        return self.probabilities
             .iter()
-            .map(|n| n.to_string())
+            .map(|p| (if p.len() == 1 {p[0]} else {0}).to_string())
             .collect();
     }
 
     pub fn print_board(&self) {
         let string: String = self.to_string();
+        let percentage_completed: f32 = self.probabilities
+            .iter()
+            .filter(|p| p.len() == 1)
+            .count() as f32 / 81 as f32 * 100 as f32;
 
         println!();
+        println!("                  {:?}%", percentage_completed);
         for (i, s) in string.chars().enumerate() {
             // After each row, print a new line
             if i != 0 && i % 9 == 0 {
@@ -196,11 +214,11 @@ impl Board {
     }
 
     pub fn blanks(&self) -> Vec<u8> {
-        // Get a vector with the index of the blank cells
-        return self.numbers
+        /// Get a vector with the index of the blank cells
+        return self.probabilities.clone()
             .iter()
             .enumerate()
-            .filter(|&(_, &value)| value == 0)
+            .filter(|(_, &ref p)| p.len() > 1)
             .map(|(index, _)|  index as u8)
             .collect();
     }
@@ -233,6 +251,7 @@ impl Board {
         //
         self.numbers[index as usize] = solution;
         self.history.insert(self.history.len(), self.numbers.clone());
+        self.probabilities[index as usize] = vec![solution];
     }
 
     pub fn try_set(&mut self, index: u8, solution: u8) -> bool {
@@ -296,7 +315,11 @@ impl Board {
         /// Returns:
         ///     true is the puzzle is solved, false if not
         ///
-        return !self.numbers.contains(&0)
+        return self.probabilities
+            .iter()
+            .filter(|p| p.len() > 1)
+            .count()
+            == 0;
     }
 
 }
