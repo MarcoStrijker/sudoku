@@ -198,6 +198,7 @@ pub trait SolveProbabilities {
     fn calculate(board: &mut Board) -> Board;
 }
 
+
 pub struct LastRemainingCell;
 
 impl SolveProbabilities for LastRemainingCell {
@@ -236,20 +237,20 @@ pub struct Naked;
 
 impl SolveProbabilities for Naked {
     fn calculate(board: &mut Board) -> Board {
-        let mut subset: Subset;
         let mut board_index: usize;
         let mut count: usize;
-        let mut new_probabilities: Vec<Vec<u8>>;
-        let mut new_probability: Vec<u8>;
+        let mut probability_index = vec![];
+        let mut naked: Vec<u8>;
 
         for i in 0..9 {
             for subset in vec![board.row_from_index(i), board.column_from_index(i), board.block_from_index(i)] {
-                new_probabilities = Vec::new();
+                probability_index = Vec::new();
+                naked = Vec::new();
                 for (ii, probabilities) in subset.probabilities.iter().enumerate() {
                     board_index = subset.indices[ii] as usize;
+
                     // Currently only naked pairs are supported
                     if probabilities.len() != 2 {
-                        new_probabilities.push(probabilities.clone());
                         continue;
                     }
 
@@ -260,18 +261,33 @@ impl SolveProbabilities for Naked {
                         .count();
 
                     if count != 2 {
-                        new_probabilities.push(probabilities.clone());
                         continue;
                     }
 
-                    println!("I will solve");
-
                     // Resolve probabilities
                     // Delete these specific probabilities
-                    board.probabilities[board_index] = probabilities
+                    for p in probabilities {
+                        if naked.contains(p) {
+                            continue
+                        }
+
+                        naked.push(*p)
+                    }
+
+                    probability_index.push(board_index)
+                }
+
+                for ii in subset.indices {
+                    // Don't change for the naked cells
+                    if probability_index.contains(&(ii as usize)) {
+                        continue
+                    }
+
+                    // Delete the solved probabilities
+                    board.probabilities[ii as usize] = board.probabilities[ii as usize]
                         .iter()
-                        .filter(|x| !subset.probabilities[ii].contains(x))
-                        .cloned()
+                        .filter(|x| !naked.contains(x))
+                        .map(|x| *x as u8)
                         .collect();
                 }
             }
