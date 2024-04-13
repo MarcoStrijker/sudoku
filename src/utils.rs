@@ -22,8 +22,6 @@ pub fn brute_force(mut board: Board) -> Board {
     // Get a vector with the index of the blank cells
     let blanks: Vec<u8> = board.blanks();
 
-    current_index = 0;
-
     while !board.solved() {
         // Convert the index within the blanks to the board index
         // And fetch the filled in number
@@ -39,7 +37,6 @@ pub fn brute_force(mut board: Board) -> Board {
             continue
         }
 
-        //
         valid = board.try_set(current_index_board, current_solution + addition);
 
         if !valid {
@@ -68,10 +65,8 @@ pub fn import_puzzles_from_file() -> Vec<Vec<String>> {
     return fs::read_to_string(r"puzzles.txt")
         .expect("It should read the file")
         .lines()
-        .map(|x| x.to_string())
-        .collect::<Vec<_>>()
-        .iter()
         .map(|x| x
+            .to_string()
             .split(", ")
             .map(|x| x
                 .to_string())

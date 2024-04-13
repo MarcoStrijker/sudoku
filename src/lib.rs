@@ -23,8 +23,7 @@ impl BoardIndexFormulas {
 
 pub struct Subset {
     pub indices: Vec<u8>,
-    pub values: Vec<u8>,
-    pub probabilities: Vec<Vec<u8>>
+    pub cells: Vec<Cell>
 }
 
 
@@ -47,11 +46,8 @@ impl Subset {
             indices: (0..9)
                 .map(|x| func(i, x))
                 .collect(),
-            values: (0..9)
-                .map(|x| board.numbers[usize::from(func(i, x))])
-                .collect(),
-            probabilities: (0..9)
-                .map(|x| board.probabilities[usize::from(func(i, x))].clone())
+            cells: (0..9)
+                .map(|x| board.cells[usize::from(func(i, x))].clone())
                 .collect()
         }
     }
@@ -66,15 +62,17 @@ impl Subset {
         /// Return:
         ///     True if the value is in self.values
         ///
-        return self.values.contains(value)
+        return self.cells
+            .iter()
+            .filter(|c| c.solved())
+            .any(|c| c.value() == *value)
     }
 
     pub fn indices_missing(&self) -> Vec<u8> {
-        return self.indices
+        return self.cells
             .iter()
-            .enumerate()
-            .filter(|&(ii, _)| self.probabilities[ii].len() > 1)
-            .map(|(_, i)| *i)
+            .filter(|c| !c.solved())
+            .map(|c| c.index)
             .collect();
     }
 
@@ -83,25 +81,25 @@ impl Subset {
         ///
         /// Returns:
         ///     The solved values
-        return self.probabilities
+        return self.cells
             .iter()
-            .filter(|p| p.len() == 1)
-            .map(|p| p[0])
+            .filter(|c| c.solved())
+            .map(|c| c.value())
             .collect()
     }
 
     pub fn values_missing(&self) -> Vec<u8> {
-        return (1..=9)
-            .filter(|x| !self.contains(x))
+        return self.cells
+            .iter()
+            .filter(|c| !c.solved())
+            .map(|c| c.value())
             .collect()
     }
 
     pub fn has_missing(&self) -> bool {
-        return self.probabilities
+        return self.cells
             .iter()
-            .filter(|p| p.len() > 1)
-            .count()
-            > 0
+            .any(|c| !c.solved())
     }
 
     pub fn union(&self, other: &Self) -> Vec<u8> {
@@ -112,8 +110,16 @@ impl Subset {
         ///
         /// Returns:
         ///     A vector containing the solved values
-        let mut union: Vec<u8> = self.values.clone();
-        for v in other.values.clone() {
+        let mut union: Vec<u8> = self.cells
+            .iter()
+            .filter(|c| c.solved())
+            .map(|c| c.value())
+            .collect::<Vec<u8>>();
+        for v in other.cells
+            .iter()
+            .filter(|c| c.solved())
+            .map(|c| c.value())
+            .collect::<Vec<u8>>() {
             if v != 0 || union.contains(&v) {
                 continue
             }
@@ -126,69 +132,60 @@ impl Subset {
 
 
 pub struct Board {
-    pub numbers: Vec<u8>,
-    pub history: Vec<Vec<u8>>,
-    pub probabilities: Vec<Vec<u8>>
+    pub cells: Vec<Cell>,
+    pub history: Vec<Vec<Cell>>
 }
 
 
 impl Board {
 
     pub fn from_string(str: &String) -> Board {
-        let current_state: Vec<u8> = str
+        let current_state: Vec<Cell> = str
             .chars()
-            .map(|c| c.to_digit(10).unwrap() as u8)
+            .enumerate()
+            .map(|(i, char)| Cell::from_number(i, char.to_digit(10).unwrap()))
             .collect();
-        let current_history: Vec<Vec<u8>> =  vec![current_state.clone()];
+        let current_history: Vec<Vec<Cell>> =  vec![current_state.clone()];
 
-        // current_probabilities is the collection of the possible solutions
-        // This will be one number, if the cell is solved
-        // And an array of number when not
-        let current_probabilities = current_state
-            .iter()
-            .map(|x| if *x == 0 {vec![1,2,3,4,5,6,7,8,9]} else {vec![*x as u8]})
-            .collect();
         return Board {
-            numbers: current_state,
-            history: current_history,
-            probabilities: current_probabilities
+            cells: current_state,
+            history: current_history
         };
     }
 
     pub fn clone(&self) -> Board {
         return Board {
-            numbers: self.numbers.clone(),
+            cells: self.cells.clone(),
             history: self.history.clone(),
-            probabilities: self.probabilities.clone()
         }
     }
 
-    pub fn convert_probabilities_to_solution(&mut self) {
-        for (i, number) in self.numbers.iter_mut().enumerate() {
-            if *number != 0 {
-                continue
-            }
-
-            if self.probabilities[i].len() != 1 {
-                continue
-            }
-
-            *number = self.probabilities[i][0]
-        }
-    }
+    // pub fn convert_probabilities_to_solution(&mut self) {
+    //     for (i, cell) in self.cells.iter_mut().enumerate() {
+    //         if *number != 0 {
+    //             continue
+    //         }
+    //
+    //         if self.probabilities[i].len() != 1 {
+    //             continue
+    //         }
+    //
+    //         *number = self.probabilities[i][0]
+    //     }
+    // }
 
     pub fn to_string(&self) -> String {
-        return self.probabilities
+        return self.cells
             .iter()
-            .map(|p| (if p.len() == 1 {p[0]} else {0}).to_string())
+            .map(|c| c.value().to_string())
             .collect();
     }
 
     pub fn print_board(&self) {
         let string: String = self.to_string();
-        let percentage_completed: f32 = self.probabilities
+        let percentage_completed: f32 = self.cells
             .iter()
-            .filter(|p| p.len() == 1)
+            .filter(|c| c.solved())
             .count() as f32 / 81 as f32 * 100 as f32;
 
         println!();
@@ -214,30 +211,29 @@ impl Board {
     }
 
     pub fn uncertainty(&self) -> usize {
-        /// Returns the sum of the number of possibilities
+        /// Returns the sum of the number of probabilities
         /// Acts as measure towards solving a puzzle
         ///
         /// Returns:
-        ///     Number of possibilities (usize)
+        ///     Number of probabilities (usize)
         ///
-        return self.probabilities
+        return self.cells
             .iter()
-            .map(|p| p.len())
+            .map(|c| c.probabilities.len())
             .sum::<usize>() - 81
     }
 
     pub fn blanks(&self) -> Vec<u8> {
         /// Get a vector with the index of the blank cells
-        return self.probabilities.clone()
+        return self.cells
             .iter()
-            .enumerate()
-            .filter(|(_, &ref p)| p.len() > 1)
-            .map(|(index, _)|  index as u8)
+            .filter(|(c)| !c.solved())
+            .map(|c| c.index)
             .collect();
     }
 
     pub fn rollback(&mut self, index: u32) {
-        self.numbers = self.history[index as usize].clone();
+        self.cells = self.history[index as usize].clone();
         // self.history.truncate(index as usize + 1);
     }
 
@@ -252,7 +248,7 @@ impl Board {
         if index > 80 {
             panic!("You've tried getting a number with a to high index. Not allowed")
         }
-        return self.numbers[index as usize]
+        return self.cells[index as usize].value()
     }
 
     fn set(&mut self, index: u8, solution: u8) {
@@ -262,9 +258,8 @@ impl Board {
         //     index (u8): the index on the board in which you want the solution to be placed
         //     solution (u8): The solution 1-9
         //
-        self.numbers[index as usize] = solution;
-        self.history.insert(self.history.len(), self.numbers.clone());
-        self.probabilities[index as usize] = vec![solution];
+        self.cells[index as usize].set(&solution);
+        self.history.insert(self.history.len(), self.cells.clone());
     }
 
     pub fn try_set(&mut self, index: u8, solution: u8) -> bool {
@@ -317,26 +312,25 @@ impl Board {
     }
 
     fn validate(&self, index: u8, solution: u8) -> bool {
-        return !(self.block_from_index(index).contains(&solution)
+        return !(
+            self.block_from_index(index).contains(&solution)
             || self.row_from_index(index).contains(&solution)
-            || self.column_from_index(index).contains(&solution))
+            || self.column_from_index(index).contains(&solution)
+        )
     }
 
     pub fn solved(&self) -> bool {
-        /// Checks if Zero is present in number, if so, the puzzle is not solved
+        /// Checks if the board is solved
         ///
         /// Returns:
         ///     true is the puzzle is solved, false if not
         ///
-        return self.probabilities
+        return self.cells
             .iter()
-            .filter(|p| p.len() > 1)
-            .count()
-            == 0;
+            .all(|c| c.solved())
     }
 
 }
-
 
 impl PartialEq for Board {
     fn eq(&self, other: &Self) -> bool {
@@ -344,3 +338,54 @@ impl PartialEq for Board {
     }
 }
 
+#[derive(Clone)]
+pub struct Cell {
+    pub index: u8,
+    pub probabilities: Vec<u8>
+}
+
+impl Cell {
+    fn from_number(i: usize, number: u32) -> Cell {
+        return Cell {
+            index: i as u8,
+            probabilities: if number == 0 {vec![1,2,3,4,5,6,7,8,9]} else {vec![number as u8]}
+        }
+    }
+
+    pub fn row(&self) -> u8 {
+        return self.index / 9
+    }
+
+    pub fn column(&self) -> u8 {
+        return self.index % 9
+    }
+
+    pub fn block(&self) -> u8 {
+        return self.index / 3 - self.index / 9 * 3 + self.index / 27 * 3
+    }
+
+    pub fn set(&mut self, value: &u8) {
+        self.probabilities = vec![*value]
+    }
+
+    pub fn value(&self) -> u8 {
+        return if self.solved() {self.probabilities[0]} else {0}
+    }
+
+    pub fn solved(&self) -> bool {
+        return self.probabilities.len() == 1
+    }
+
+    pub fn clone(&self) -> Cell {
+        return Cell {
+            index: self.index.clone(),
+            probabilities: self.probabilities.clone()
+        }
+    }
+}
+
+impl PartialEq for Cell {
+    fn eq(&self, other: &Self) -> bool {
+        return self.index == other.index && self.probabilities == other.probabilities
+    }
+}

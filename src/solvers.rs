@@ -214,12 +214,12 @@ impl SolveProbabilities for LastRemainingCell {
                 }
 
                 for ii in subset.indices {
-                    if board.probabilities[ii as usize].len() == 1 {
+                    if board.cells[ii as usize].solved() {
                         continue
                     }
 
                     // Delete solved numbers from cells
-                    board.probabilities[ii as usize] = board.probabilities[ii as usize]
+                    board.cells[ii as usize].probabilities = board.cells[ii as usize].probabilities
                         .clone()
                         .iter()
                         .filter(|x| !values_solved.contains(x))
@@ -246,18 +246,18 @@ impl SolveProbabilities for Naked {
             for subset in vec![board.row_from_index(i), board.column_from_index(i), board.block_from_index(i)] {
                 probability_index = Vec::new();
                 naked = Vec::new();
-                for (ii, probabilities) in subset.probabilities.iter().enumerate() {
+                for (ii, cell) in subset.cells.iter().enumerate() {
                     board_index = subset.indices[ii] as usize;
 
                     // Currently only naked pairs are supported
-                    if probabilities.len() != 2 {
+                    if cell.probabilities.len() != 2 {
                         continue;
                     }
 
                     // Count how many cell share the same probabilities
-                    count = subset.probabilities
+                    count = subset.cells
                         .iter()
-                        .filter(|&x| x == probabilities)
+                        .filter(|&x| x.probabilities == cell.probabilities)
                         .count();
 
                     if count != 2 {
@@ -266,8 +266,8 @@ impl SolveProbabilities for Naked {
 
                     // Resolve probabilities
                     // Delete these specific probabilities
-                    for p in probabilities {
-                        if naked.contains(p) {
+                    for p in &cell.probabilities {
+                        if naked.contains(&p) {
                             continue
                         }
 
@@ -284,7 +284,7 @@ impl SolveProbabilities for Naked {
                     }
 
                     // Delete the solved probabilities
-                    board.probabilities[ii as usize] = board.probabilities[ii as usize]
+                    board.cells[ii as usize].probabilities = board.cells[ii as usize].probabilities
                         .iter()
                         .filter(|x| !naked.contains(x))
                         .map(|x| *x as u8)
