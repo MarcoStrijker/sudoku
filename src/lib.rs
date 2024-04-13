@@ -192,7 +192,7 @@ impl Board {
             .count() as f32 / 81 as f32 * 100 as f32;
 
         println!();
-        println!("                  {:?}%", percentage_completed);
+        println!("{:?} - {:?}%", self.uncertainty(), percentage_completed);
         for (i, s) in string.chars().enumerate() {
             // After each row, print a new line
             if i != 0 && i % 9 == 0 {
@@ -211,6 +211,19 @@ impl Board {
             print!(" {} ", s);
         }
         println!()
+    }
+
+    pub fn uncertainty(&self) -> usize {
+        /// Returns the sum of the number of possibilities
+        /// Acts as measure towards solving a puzzle
+        ///
+        /// Returns:
+        ///     Number of possibilities (usize)
+        ///
+        return self.probabilities
+            .iter()
+            .map(|p| p.len())
+            .sum::<usize>() - 81
     }
 
     pub fn blanks(&self) -> Vec<u8> {
