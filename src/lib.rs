@@ -68,6 +68,14 @@ impl Subset {
             .any(|c| c.value() == *value)
     }
 
+    pub fn missing(&self) -> Vec<Cell> {
+        return self.cells
+            .clone()
+            .into_iter()
+            .filter(|c| !c.solved())
+            .collect::<Vec<Cell>>();
+    }
+
     pub fn indices_missing(&self) -> Vec<u8> {
         return self.cells
             .iter()
@@ -220,7 +228,7 @@ impl Board {
         return self.cells
             .iter()
             .map(|c| c.probabilities.len())
-            .sum::<usize>() - 81
+            .sum::<usize>()
     }
 
     pub fn blanks(&self) -> Vec<u8> {
@@ -364,8 +372,21 @@ impl Cell {
         return self.index / 3 - self.index / 9 * 3 + self.index / 27 * 3
     }
 
+    pub fn contains(&self, value: &u8) -> bool {
+        return self.probabilities.contains(value)
+    }
+
     pub fn set(&mut self, value: &u8) {
         self.probabilities = vec![*value]
+    }
+
+    pub fn remove(&mut self, value: u8) {
+        self.probabilities = self.probabilities
+            .clone()
+            .iter()
+            .filter(|p| p == &&value)
+            .map(|p| *p)
+            .collect()
     }
 
     pub fn value(&self) -> u8 {
