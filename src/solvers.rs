@@ -1,3 +1,4 @@
+use std::collections::HashSet;
 use crate::lib::*;
 
 
@@ -66,8 +67,6 @@ impl DirectSolvers for LastCel {
         return board
     }
 }
-
-
 impl DirectSolvers for LastRemainingCellLine {
     fn solve(&self, mut board: Board) -> Board {
         let mut missing_values: Vec<u8>;
@@ -124,8 +123,6 @@ impl DirectSolvers for LastRemainingCellLine {
         return board;
     }
 }
-
-
 impl DirectSolvers for LastRemainingCellBlock {
     fn solve(&self, mut board: Board) -> Board {
         let mut subset: Subset;
@@ -164,7 +161,6 @@ impl DirectSolvers for LastRemainingCellBlock {
         return board
     }
 }
-
 impl DirectSolvers for LastPossibleNumber {
     fn solve(&self, mut board: Board) -> Board {
         let mut values_in_rows: Subset;
@@ -289,6 +285,100 @@ impl SolveProbabilities for Naked {
                         .filter(|x| !naked.contains(x))
                         .map(|x| *x as u8)
                         .collect();
+                }
+            }
+        }
+
+        return board.clone()
+    }
+}
+
+pub struct Hidden;
+
+impl SolveProbabilities for Hidden {
+    fn calculate(board: &mut Board) -> Board {
+        let mut missing: Vec<Cell>;
+        let mut counts: Vec<u8>;
+        let mut index: u8;
+
+        // Iterate over all 9 rows, columns and blocks
+        for i in 0..9 {
+            for subset in vec![board.row(i), board.column(i), board.block(i)] {
+                // Get the missing cells
+                missing = subset.missing();
+
+                // Get all single solutions
+                counts = (1..=9)
+                    .map(|x| missing
+                        .iter()
+                        .filter(|c| c.probabilities.contains(&x))
+                        .count() as u8
+                    )
+                    .collect();
+
+                println!("{:?}", counts);
+                for r in &subset.cells {
+                    print!("{:?}", r.probabilities);
+                }
+                println!();
+
+                // Loop over the counts
+                // If probabilities are found that are present once
+                // This means this cell has to be that solution
+                for (i, count) in counts.iter().enumerate() {
+                    if *count != 1 {
+                        continue
+                    }
+
+                    // Get the index of the cell with the one probability
+                    index = subset.cells
+                        .iter()
+                        .filter(|c| c.contains(&((i + 1) as u8)))
+                        .map(|c| c.index)
+                        .collect::<Vec<u8>>()[0];
+
+                    // Set the solution
+                    board.cells[index as usize].set(&((i + 1) as u8))
+                }
+            }
+            break
+        }
+
+        return board.clone()
+    }
+}
+
+
+pub struct Pointing;
+
+impl SolveProbabilities for Pointing {
+    fn calculate(board: &mut Board) -> Board {
+        let mut subset: Subset;
+        let mut line: Subset;
+        let mut missing: Vec<Cell>;
+        let mut missing_line: Vec<u8>;
+
+        for i in 0..9 {
+            subset = board.block(i);
+            missing = subset.missing();
+            for p in 1..=9 {
+                missing_line = missing
+                    .clone()
+                    .into_iter()
+                    .filter(|c| c.contains(&p))
+                    .map(|c| c.row())
+                    .collect::<HashSet<u8>>()
+                    .into_iter()
+                    .collect();
+
+                if missing_line.len() == 1 {
+                    line = board.row(missing_line[0] as u8);
+                    for c in line.cells {
+                        if missing.contains(&c) {
+                            continue
+                        }
+                        board.cells[c.index as usize].remove(p);
+                    }
                 }
             }
         }
