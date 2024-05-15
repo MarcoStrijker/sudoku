@@ -1,4 +1,6 @@
+use std::cmp::PartialEq;
 use std::collections::HashSet;
+use std::vec;
 use crate::lib::*;
 
 
@@ -10,6 +12,14 @@ struct LastCel;
 struct LastRemainingCellLine;
 pub struct LastRemainingCellBlock;
 struct LastPossibleNumber;
+
+
+enum Orientation {
+    Row,
+    Column,
+    Block
+}
+
 
 
 impl DirectSolvers for LastCel {
@@ -351,12 +361,28 @@ impl SolveProbabilities for Hidden {
 
 pub struct Pointing;
 
-impl SolveProbabilities for Pointing {
-    fn calculate(board: &mut Board) -> Board {
+
+impl Pointing {
+    fn logic(board: &mut Board, orientation: Orientation) -> Board {
         let mut subset: Subset;
-        let mut line: Subset;
         let mut missing: Vec<Cell>;
         let mut missing_line: Vec<u8>;
+
+        let get_row_or_colum_index: fn(&Cell) -> u8;
+        let get_line: fn(&Board, u8) -> Subset;
+
+        // Create function that have gets rows/columns respective to the orientation
+        match orientation {
+            Orientation::Row => {
+                get_row_or_colum_index = |c: &Cell | -> u8 {c.row()};
+                get_line = |b: &Board, i: u8 | -> Subset {b.row(i)};
+            }
+            Orientation::Column => {
+                get_row_or_colum_index = |c: &Cell | -> u8 {c.row()};
+                get_line = |b: &Board, i: u8 | -> Subset {b.row(i)};
+            },
+            _ => panic!("Block operation not allowed with Pointing strategy")
+        };
 
         for i in 0..9 {
             subset = board.block(i);
@@ -366,23 +392,38 @@ impl SolveProbabilities for Pointing {
                     .clone()
                     .into_iter()
                     .filter(|c| c.contains(&p))
-                    .map(|c| c.row())
+                    .map(|c| get_row_or_colum_index(&c))
                     .collect::<HashSet<u8>>()
                     .into_iter()
                     .collect();
 
-                if missing_line.len() == 1 {
-                    line = board.row(missing_line[0] as u8);
-                    for c in line.cells {
-                        if missing.contains(&c) {
-                            continue
-                        }
-                        board.cells[c.index as usize].remove(p);
+                // When there are probabilities in multiple rows
+                // the pointing strategy won't work
+                if missing_line.len() != 1 {
+                    continue
+                }
+
+                // Remove probabilities that are in the same row
+                // Prevent removing in the focal block (subset)
+                for c in get_line(board, missing_line[0]).cells.iter() {
+                    if subset.indices.contains(&c.index) || c.solved() {
+                        continue
                     }
+                    board.cells[c.index as usize].remove(p);
                 }
             }
         }
 
         return board.clone()
     }
+
+    pub fn calculate(board: &mut Board) -> Board {
+        for orientation in vec![Orientation::Row, Orientation::Column] {
+            *board = Self::logic(board, orientation);
+        }
+        return board.clone()
+    }
+
+
+
 }
