@@ -381,10 +381,14 @@ impl Cell {
     }
 
     pub fn remove(&mut self, value: u8) {
+        if !self.probabilities.contains(&value) {
+            return;
+        }
+
         self.probabilities = self.probabilities
             .clone()
             .iter()
-            .filter(|p| p == &&value)
+            .filter(|p| p != &&value)
             .map(|p| *p)
             .collect()
     }
