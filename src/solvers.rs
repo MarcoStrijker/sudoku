@@ -207,35 +207,48 @@ pub trait SolveProbabilities {
 
 pub struct LastRemainingCell;
 
-impl SolveProbabilities for LastRemainingCell {
-    fn calculate(board: &mut Board) -> Board {
+impl LastRemainingCell {
+    fn logic(board: &mut Board, orientation: Orientation) -> Board {
         let mut values_solved: Vec<u8>;
+        let mut subset: Subset;
+
 
         for i in 0..9 {
-            for subset in vec![board.row_from_index(i), board.column_from_index(i), board.block_from_index(i)] {
-                values_solved = subset.values_solved();
+            subset = match orientation {
+                Orientation::Row => {board.row_from_index(i)},
+                Orientation::Column => {board.column_from_index(i)},
+                Orientation::Block => {board.block_from_index(i)}
+            };
 
-                if values_solved.len() == 0 {
+            values_solved = subset.values_solved();
+
+            if values_solved.len() == 0 {
+                continue
+            }
+
+            for ii in subset.indices {
+                if board.cells[ii as usize].solved() {
                     continue
                 }
 
-                for ii in subset.indices {
-                    if board.cells[ii as usize].solved() {
-                        continue
-                    }
-
-                    // Delete solved numbers from cells
-                    board.cells[ii as usize].probabilities = board.cells[ii as usize].probabilities
-                        .clone()
-                        .iter()
-                        .filter(|x| !values_solved.contains(x))
-                        .map(|x| *x)
-                        .collect();
-                }
+                // Delete solved numbers from cells
+                board.cells[ii as usize].probabilities = board.cells[ii as usize].probabilities
+                    .clone()
+                    .iter()
+                    .filter(|x| !values_solved.contains(x))
+                    .map(|x| *x)
+                    .collect();
             }
         }
 
         return board.clone();
+    }
+
+    pub fn calculate(board: &mut Board) -> Board {
+        for orientation in vec![Orientation::Row, Orientation::Column, Orientation::Block] {
+            *board = Self::logic(board, orientation);
+        }
+        return board.clone()
     }
 }
 
