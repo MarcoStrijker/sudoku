@@ -15,19 +15,19 @@ fn main() {
     let mut board = Board::from_string(&start);
     board.print_board();
 
-    let mut new_board = LastRemainingCell::calculate(&mut board);
+    let new_board = LastRemainingCell::calculate(&mut board);
     println!("LastRemainingCell");
     new_board.print_board();
 
-    let mut newest_board = Naked::calculate(&mut board);
+    let newest_board = Naked::calculate(&mut board);
     println!("Naked");
     newest_board.print_board();
 
-    let mut new_newest = Hidden::calculate(&mut board);
+    let new_newest = Hidden::calculate(&mut board);
     println!("Hidden");
     new_newest.print_board();
 
-    let mut new_new_newer = Pointing::calculate(&mut board);
+    let new_new_newer = Pointing::calculate(&mut board);
     println!("Pointing");
     new_new_newer.print_board();
 

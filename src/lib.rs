@@ -235,7 +235,7 @@ impl Board {
         /// Get a vector with the index of the blank cells
         return self.cells
             .iter()
-            .filter(|(c)| !c.solved())
+            .filter(|c| !c.solved())
             .map(|c| c.index)
             .collect();
     }
