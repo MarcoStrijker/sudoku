@@ -15,21 +15,16 @@ fn main() {
     let mut board = Board::from_string(&start);
     board.print_board();
 
-    let new_board = LastRemainingCell::calculate(&mut board);
-    println!("LastRemainingCell");
-    new_board.print_board();
+    let mut super_board: Board = board.clone();
 
-    let newest_board = Naked::calculate(&mut board);
-    println!("Naked");
-    newest_board.print_board();
+    for _ in 0..1000 {
+        super_board = LastRemainingCell::calculate(&mut super_board);
+        super_board = Naked::calculate(&mut super_board);
+        super_board = Hidden::calculate(&mut super_board);
+        super_board = Pointing::calculate(&mut super_board);
+    }
 
-    let new_newest = Hidden::calculate(&mut board);
-    println!("Hidden");
-    new_newest.print_board();
-
-    let new_new_newer = Pointing::calculate(&mut board);
-    println!("Pointing");
-    new_new_newer.print_board();
+    super_board.print_board();
 
     brute_force(Board::from_string(&start)).print_board();
 
