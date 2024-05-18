@@ -4,7 +4,7 @@ use crate::lib::*;
 
 
 pub trait DirectSolvers {
-    fn solve(&self, board: Board) -> Board;
+    fn solve(board: Board) -> Board;
 }
 
 struct LastCel;
@@ -20,9 +20,8 @@ enum Orientation {
 }
 
 
-
 impl DirectSolvers for LastCel {
-    fn solve(&self, mut board: Board) -> Board {
+    fn solve(mut board: Board) -> Board {
         let mut num: u8;
         let mut index: u8;
         let mut valid: bool;
@@ -77,7 +76,7 @@ impl DirectSolvers for LastCel {
     }
 }
 impl DirectSolvers for LastRemainingCellLine {
-    fn solve(&self, mut board: Board) -> Board {
+    fn solve(mut board: Board) -> Board {
         let mut missing_values: Vec<u8>;
         let mut missing_indices: Vec<u8>;
         let mut possible: Vec<u8>;
@@ -133,7 +132,7 @@ impl DirectSolvers for LastRemainingCellLine {
     }
 }
 impl DirectSolvers for LastRemainingCellBlock {
-    fn solve(&self, mut board: Board) -> Board {
+    fn solve(mut board: Board) -> Board {
         let mut subset: Subset;
         let mut valid_spots: Vec<u8>;
 
@@ -171,7 +170,7 @@ impl DirectSolvers for LastRemainingCellBlock {
     }
 }
 impl DirectSolvers for LastPossibleNumber {
-    fn solve(&self, mut board: Board) -> Board {
+    fn solve(mut board: Board) -> Board {
         let mut values_in_rows: Subset;
         let mut values_in_columns: Subset;
         let mut union: Vec<u8>;
@@ -198,9 +197,28 @@ impl DirectSolvers for LastPossibleNumber {
 }
 
 
+pub trait SolveProbabilities {
+    fn orientations() -> Vec<Orientation>;
+
+    fn logic(board: &mut Board, orientation: Orientation) -> Board;
+
+    // Calculate for multiple orientations
+    fn calculate(board: &mut Board) -> Board {
+        for orientation in Self::orientations() {
+            *board = Self::logic(board, orientation);
+        }
+        return board.clone();
+    }
+}
+
+
 pub struct LastRemainingCell;
 
-impl LastRemainingCell {
+impl SolveProbabilities for LastRemainingCell {
+    fn orientations() -> Vec<Orientation> {
+        return vec![Orientation::Row, Orientation::Column, Orientation::Block];
+    }
+
     fn logic(board: &mut Board, orientation: Orientation) -> Board {
         let mut values_solved: Vec<u8>;
         let mut subset: Subset;
@@ -236,23 +254,13 @@ impl LastRemainingCell {
 
         return board.clone();
     }
-
-    pub fn calculate(board: &mut Board) -> Board {
-        for orientation in vec![Orientation::Row, Orientation::Column, Orientation::Block] {
-            *board = Self::logic(board, orientation);
-        }
-        return board.clone()
-    }
 }
 
 pub struct Naked;
 
-impl Naked {
-    pub fn calculate(board: &mut Board) -> Board {
-        for orientation in vec![Orientation::Row, Orientation::Column] {
-            *board = Self::logic(board, orientation);
-        }
-        return board.clone()
+impl SolveProbabilities for Naked {
+    fn orientations() -> Vec<Orientation> {
+        return vec![Orientation::Row, Orientation::Column, Orientation::Block];
     }
 
     fn logic(board: &mut Board, orientation: Orientation) -> Board {
@@ -321,13 +329,9 @@ impl Naked {
 
 pub struct Hidden;
 
-impl Hidden {
-
-    pub fn calculate(board: &mut Board) -> Board {
-        for orientation in vec![Orientation::Row, Orientation::Column] {
-            *board = Self::logic(board, orientation);
-        }
-        return board.clone()
+impl SolveProbabilities for Hidden {
+    fn orientations() -> Vec<Orientation> {
+        return vec![Orientation::Row, Orientation::Column, Orientation::Block];
     }
 
     fn logic(board: &mut Board, orientation: Orientation) -> Board {
@@ -356,11 +360,11 @@ impl Hidden {
                 )
                 .collect();
 
-            println!("{:?}", counts);
-            for r in &subset.cells {
-                print!("{:?}", r.probabilities);
-            }
-            println!();
+            // println!("{:?}", counts);
+            // for r in &subset.cells {
+            //     print!("{:?}", r.probabilities);
+            // }
+            // println!();
 
             // Loop over the counts
             // If probabilities are found that are present once
@@ -389,13 +393,9 @@ impl Hidden {
 
 pub struct Pointing;
 
-impl Pointing {
-
-    pub fn calculate(board: &mut Board) -> Board {
-        for orientation in vec![Orientation::Row, Orientation::Column] {
-            *board = Self::logic(board, orientation);
-        }
-        return board.clone()
+impl SolveProbabilities for Pointing {
+    fn orientations() -> Vec<Orientation> {
+        return vec![Orientation::Row, Orientation::Column];
     }
 
     fn logic(board: &mut Board, orientation: Orientation) -> Board {
