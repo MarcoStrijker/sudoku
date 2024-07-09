@@ -1,5 +1,5 @@
 use std::fs;
-use crate::lib::Board;
+use crate::lib::{Board, Cell};
 
 
 pub fn brute_force(mut board: Board) -> Board {

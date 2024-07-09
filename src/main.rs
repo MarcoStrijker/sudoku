@@ -3,32 +3,52 @@ mod solvers;
 mod utils;
 
 
+use sudoku::Cell;
 use crate::lib::Board;
 
 use crate::solvers::*;
 use crate::utils::brute_force;
 
 
+
+use itertools::Itertools;
+
 fn main() {
-    let start = String::from("400000938032094100095300240370609004529001673604703090957008300003900400240030709");
-    // let start = String::from("065370002000001370000640800097004028080090001100020940040006700070018050230900060");
-    let mut board = Board::from_string(&start);
-    board.print_board();
+    let vec = vec!["1", "2", "3", "4", "5", "6", "7", "8", "9"];
 
-    let mut super_board: Board = board.clone();
+    let n = 2; // Number of elements in each combination
 
-    for _ in 0..1000 {
-        super_board = LastRemainingCell::calculate(&mut super_board);
-        super_board = Naked::calculate(&mut super_board);
-        super_board = Hidden::calculate(&mut super_board);
-        super_board = Pointing::calculate(&mut super_board);
+    for combination in vec
+            .iter()
+            .enumerate()
+            .combinations(n as usize)
+            .collect::<Vec<(usize, &&str)>>() {
+        println!("{:?}", combination);
     }
 
-    super_board.print_board();
-
-    brute_force(Board::from_string(&start)).print_board();
-
+    // println!("{:?}", Vec::from_iter(vec.iter().combinations(n)).len())
 }
+
+// fn main() {
+//     let start = String::from("400000938032094100095300240370609004529001673604703090957008300003900400240030709");
+//     // let start = String::from("065370002000001370000640800097004028080090001100020940040006700070018050230900060");
+//     let mut board = Board::from_string(&start);
+//     board.print_board();
+//
+//     let mut super_board: Board = board.clone();
+//
+//     for _ in 0..1000 {
+//         super_board = LastRemainingCell::calculate(&mut super_board);
+//         super_board = Naked::calculate(&mut super_board);
+//         super_board = Hidden::calculate(&mut super_board);
+//         super_board = Pointing::calculate(&mut super_board);
+//     }
+//
+//     super_board.print_board();
+//
+//     brute_force(Board::from_string(&start)).print_board();
+//
+// }
 
 #[cfg(test)]
 mod tests {

@@ -2,6 +2,7 @@ use std::collections::HashSet;
 use std::vec;
 use crate::lib::*;
 
+use itertools::Itertools;
 
 pub trait DirectSolvers {
     fn solve(board: Board) -> Board;
@@ -11,6 +12,7 @@ struct LastCel;
 struct LastRemainingCellLine;
 pub struct LastRemainingCellBlock;
 struct LastPossibleNumber;
+
 
 
 enum Orientation {
@@ -270,12 +272,30 @@ impl SolveProbabilities for Naked {
         let mut probability_index: Vec<usize>;
         let mut naked: Vec<u8>;
 
+        let mut unique_numbers: HashSet<u8>;
+
         for i in 0..9 {
+
             subset = match orientation {
                 Orientation::Row => { board.row_from_index(i) },
                 Orientation::Column => { board.column_from_index(i) },
                 Orientation::Block => { board.block_from_index(i) }
             };
+
+
+
+            for combination in subset.cells.iter().combinations(2) {
+
+                unique_numbers = HashSet::<u8>::new();
+                for c in combination {
+                    unique_numbers.extend(c.as_set())
+                }
+
+                if unique_numbers.len() == 2 {
+
+                }
+            }
+
             probability_index = Vec::new();
             naked = Vec::new();
             for (ii, cell) in subset.cells.iter().enumerate() {

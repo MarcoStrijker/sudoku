@@ -1,3 +1,9 @@
+use std::collections::HashSet;
+use std::collections::hash_map::HashMap;
+
+use itertools::Itertools;
+
+
 enum IndexFormulas{}
 
 impl IndexFormulas {
@@ -136,6 +142,15 @@ impl Subset {
 
         return union;
     }
+
+    // pub fn get_cell_combinations(&self, n: u8) ->  {
+    //     return self.cells
+    //         .iter()
+    //         .enumerate()
+    //         .combinations(n as usize)
+    //         .collect();
+    //
+    // }
 }
 
 
@@ -358,6 +373,10 @@ impl Cell {
             index: i as u8,
             probabilities: if number == 0 {vec![1,2,3,4,5,6,7,8,9]} else {vec![number as u8]}
         }
+    }
+
+    pub fn as_set(&self) -> HashSet<u8> {
+        return HashSet::from_iter(self.probabilities.clone())
     }
 
     pub fn row(&self) -> u8 {
