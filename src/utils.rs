@@ -1,16 +1,15 @@
 use std::fs;
-use crate::lib::{Board, Cell};
+use crate::lib::Board;
 
 
+/// Solves a sudoku with brute-force
+///
+/// ### Args:
+///     board (Board): The board that needs to be solved
+///
+/// ### Returns:
+///     The solved board
 pub fn brute_force(mut board: Board) -> Board {
-    /// Solves a sudoku with brute-force
-    ///
-    /// Args:
-    ///     board (Board): The board that needs to be solved
-    ///
-    /// Returns:
-    ///     The solved board
-    ///
     let mut valid: bool;
     let mut current_index_board: u8;
     let mut current_solution: u8;
@@ -54,14 +53,14 @@ pub fn brute_force(mut board: Board) -> Board {
     return board
 }
 
+/// Returns a vector with vectors, containing the puzzle
+/// and solution of that puzzle
+///
+/// ### Returns:
+///     A Vector containing a Vector that represents a sudoku,
+///     the first element is the puzzle and the second the solution
+///
 pub fn import_puzzles_from_file() -> Vec<Vec<String>> {
-    /// Returns a vector with vectors, containing the puzzle
-    /// and solution of that puzzle
-    ///
-    /// Returns:
-    ///     A Vector containing a Vector that represents a sudoku,
-    ///     the first element is the puzzle and the second the solution
-    ///
     return fs::read_to_string(r"puzzles.txt")
         .expect("It should read the file")
         .lines()
