@@ -1,5 +1,4 @@
 use std::collections::HashSet;
-use std::collections::hash_map::HashMap;
 
 use itertools::Itertools;
 
@@ -33,21 +32,21 @@ pub struct Subset {
 }
 
 
+/// Initializes a subset of Cells from a board instance based on the requested
+/// index and passed function. Eligible functions can be found in IndexFormulas
+/// and BoardIndexFormulas
+///
+/// Args:
+///     board (&Board): the board
+///     i (u8): index, can be the index of the requested subset, or the
+///             index of the cell on the board. This changeable through the
+///             passed function
+///     func (&dyn Fn(u8, u8) -> u8): formula that determines the cells
+///
+/// Returns:
+///     Subset
 impl Subset {
     fn from_board(board: &Board, i: u8, func: &dyn Fn(u8, u8) -> u8) -> Subset {
-        /// Initializes a subset of Cells from a board instance based on the requested
-        /// index and passed function. Eligible functions can be found in IndexFormulas
-        /// and BoardIndexFormulas
-        ///
-        /// Args:
-        ///     board (&Board): the board
-        ///     i (u8): index, can be the index of the requested subset, or the
-        ///             index of the cell on the board. This changeable through the
-        ///             passed function
-        ///     func (&dyn Fn(u8, u8) -> u8): formula that determines the cells
-        ///
-        /// Returns:
-        ///     Subset
         return Subset {
             indices: (0..9)
                 .map(|x| func(i, x))
@@ -58,16 +57,16 @@ impl Subset {
         }
     }
 
+    /// Wrapper for Vector.contains. Looks into the values of the
+    /// subset if it contains the passed value
+    ///
+    /// ### Args:
+    ///     value (u8): The value that should be checked
+    ///
+    /// ### Return:
+    ///     True if the value is in self.values
+    ///
     pub fn contains(&self, value: &u8) -> bool {
-        /// Wrapper for Vector.contains. Looks into the values of the
-        /// subset if it contains the passed value
-        ///
-        /// Args:
-        ///     value (u8): The value that should be checked
-        ///
-        /// Return:
-        ///     True if the value is in self.values
-        ///
         return self.cells
             .iter()
             .filter(|c| c.solved())
@@ -90,11 +89,11 @@ impl Subset {
             .collect();
     }
 
+    /// Get the values that are solved in Self
+    ///
+    /// ### Returns:
+    ///     The solved values (Vec<u8>)
     pub fn values_solved(&self) -> Vec<u8> {
-        /// Get the values that are solved in Self
-        ///
-        /// Returns:
-        ///     The solved values
         return self.cells
             .iter()
             .filter(|c| c.solved())
@@ -116,14 +115,14 @@ impl Subset {
             .any(|c| !c.solved())
     }
 
+    /// Returns all unique solved values that are in self or other
+    ///
+    /// # Args:
+    ///     other (Subset): The other subset
+    ///
+    /// # Returns:
+    /// A vector containing the solved values
     pub fn union(&self, other: &Self) -> Vec<u8> {
-        /// Returns all unique solved values that are in self or other
-        ///
-        /// Args:
-        ///     other (Subset): The other subset
-        ///
-        /// Returns:
-        ///     A vector containing the solved values
         let mut union: Vec<u8> = self.cells
             .iter()
             .filter(|c| c.solved())
@@ -162,7 +161,13 @@ pub struct Board {
 
 impl Board {
 
+    /// Initialize board from a string
     pub fn from_string(str: &String) -> Board {
+
+        if str.len() != 81 {
+            panic!("The string must be 81 characters")
+        }
+
         let current_state: Vec<Cell> = str
             .chars()
             .enumerate()
@@ -176,26 +181,16 @@ impl Board {
         };
     }
 
+    /// Clones the board by initializing new board with cloned values
+    ///
+    /// ### Returns
+    ///     Cloned board (Board)
     pub fn clone(&self) -> Board {
         return Board {
             cells: self.cells.clone(),
             history: self.history.clone(),
         }
     }
-
-    // pub fn convert_probabilities_to_solution(&mut self) {
-    //     for (i, cell) in self.cells.iter_mut().enumerate() {
-    //         if *number != 0 {
-    //             continue
-    //         }
-    //
-    //         if self.probabilities[i].len() != 1 {
-    //             continue
-    //         }
-    //
-    //         *number = self.probabilities[i][0]
-    //     }
-    // }
 
     pub fn to_string(&self) -> String {
         return self.cells
@@ -233,21 +228,21 @@ impl Board {
         println!()
     }
 
-    pub fn uncertainty(&self) -> usize {
-        /// Returns the sum of the number of probabilities
-        /// Acts as measure towards solving a puzzle
-        ///
-        /// Returns:
-        ///     Number of probabilities (usize)
-        ///
+    /// Returns the sum of the number of probabilities
+    /// Acts as measure towards solving a puzzle
+    ///
+    /// ### Returns:
+    ///     Number of probabilities (usize)
+    ///
+    fn uncertainty(&self) -> usize {
         return self.cells
             .iter()
             .map(|c| c.probabilities.len())
             .sum::<usize>()
     }
 
+    /// Get a vector with the index of the blank cells
     pub fn blanks(&self) -> Vec<u8> {
-        /// Get a vector with the index of the blank cells
         return self.cells
             .iter()
             .filter(|c| !c.solved())
@@ -260,14 +255,14 @@ impl Board {
         // self.history.truncate(index as usize + 1);
     }
 
+    /// Get the value of a cell
+    ///
+    /// ### Args:
+    ///     index (u8): the index of the cell
+    ///
+    /// ### Returns:
+    ///     The value of the cell (u8)
     pub fn get(&self, index: u8) -> u8 {
-        /// Get the value of a cell, naturally cannot exceed 80
-        ///
-        /// Args:
-        ///     index (u8): the index of the cell
-        ///
-        /// Returns:
-        ///     The value of the cell (u8)
         if index > 80 {
             panic!("You've tried getting a number with a to high index. Not allowed")
         }
@@ -285,22 +280,20 @@ impl Board {
         self.history.insert(self.history.len(), self.cells.clone());
     }
 
+    /// Try to set a solution into a cell
+    ///
+    /// Args:
+    ///     index (u8): the index on the board in which you want the solution to be placed
+    ///     solution (u8): The solution 1-9
+    ///
+    /// Returns:
+    ///     true if the set is valid, false if not (bool)
+    ///
     pub fn try_set(&mut self, index: u8, solution: u8) -> bool {
-        /// Try to set a solution into a cell
-        ///
-        /// Args:
-        ///     index (u8): the index on the board in which you want the solution to be placed
-        ///     solution (u8): The solution 1-9
-        ///
-        /// Returns:
-        ///     true if the set is valid, false if not (bool)
-        ///
         if index > 80 {
             panic!("You've tried setting a number with a to high index. Not allowed")
         }
 
-        // Check if the set is according to the sudoku rules
-        // Check for conflicts in ros, column, and block
         if !self.validate(index, solution) {
             return false;
         }
@@ -308,6 +301,17 @@ impl Board {
         // Set the solution
         self.set(index, solution);
         return true
+    }
+
+    /// Removes multiple probabilities from multiple cells
+    ///
+    /// ### Arguments
+    ///     indices (Vec<u8>)
+    ///     probabilities (Vec<u8>)
+    pub fn remove_probabilities_from_cells(&mut self, indices: Vec<u8>, probabilities: Vec<u8>) {
+        for i in indices {
+            self.cells[i as usize].probabilities.retain(|p| !probabilities.contains(p))
+        }
     }
 
     pub fn row(&self, i: u8) -> Subset {
@@ -342,12 +346,13 @@ impl Board {
         )
     }
 
+    /// # Solved
+    /// Checks if the board is solved
+    ///
+    /// ### Returns:
+    ///     true is the puzzle is solved, false if not
+    ///
     pub fn solved(&self) -> bool {
-        /// Checks if the board is solved
-        ///
-        /// Returns:
-        ///     true is the puzzle is solved, false if not
-        ///
         return self.cells
             .iter()
             .all(|c| c.solved())
@@ -395,21 +400,19 @@ impl Cell {
         return self.probabilities.contains(value)
     }
 
+    /// Force set a solution (probabilities wil be vector of one). No checks will be
+    /// executed
     pub fn set(&mut self, value: &u8) {
         self.probabilities = vec![*value]
     }
 
+    /// Removes a probability from the probabilities
     pub fn remove(&mut self, value: u8) {
         if !self.probabilities.contains(&value) {
             return;
         }
 
-        self.probabilities = self.probabilities
-            .clone()
-            .iter()
-            .filter(|p| p != &&value)
-            .map(|p| *p)
-            .collect()
+        self.probabilities.retain(|p| p != &value)
     }
 
     pub fn value(&self) -> u8 {
