@@ -2,200 +2,14 @@ use std::collections::HashSet;
 use std::vec;
 use crate::lib::*;
 
-use itertools::Itertools;
-
-pub trait DirectSolvers {
-    fn solve(board: Board) -> Board;
-}
-
-struct LastCel;
-struct LastRemainingCellLine;
-pub struct LastRemainingCellBlock;
-struct LastPossibleNumber;
+use itertools::{Combinations, Itertools, rev};
 
 
-
-enum Orientation {
+#[derive(Debug)]
+pub enum Orientation {
     Row,
     Column,
     Block
-}
-
-
-impl DirectSolvers for LastCel {
-    fn solve(mut board: Board) -> Board {
-        let mut num: u8;
-        let mut index: u8;
-        let mut valid: bool;
-        let mut subset: Subset;
-        let mut missing_values: Vec<u8>;
-
-        for i in 0..8 {
-            subset = board.row(i);
-            missing_values = subset.values_missing();
-            if missing_values.len() != 1 {
-                continue
-            }
-            num = missing_values[0];
-            index = subset.indices_missing()[0];
-            valid = board.try_set(index, num);
-            if !valid {
-                continue
-            }
-            return board;
-        }
-
-        for i in 0..8 {
-            subset = board.column(i);
-            missing_values = subset.values_missing();
-            if missing_values.len() != 1 {
-                continue
-            }
-            num = missing_values[0];
-            index = subset.indices_missing()[0];
-            valid = board.try_set(index, num);
-            if !valid {
-                continue
-            }
-            return board;
-        }
-
-        for i in 0..8 {
-            subset = board.block(i);
-            missing_values = subset.values_missing();
-            if missing_values.len() != 1 {
-                continue
-            }
-            num = missing_values[0];
-            index = subset.indices_missing()[0];
-            valid = board.try_set(index, num);
-            if !valid {
-                continue
-            }
-            return board;
-        }
-        return board
-    }
-}
-impl DirectSolvers for LastRemainingCellLine {
-    fn solve(mut board: Board) -> Board {
-        let mut missing_values: Vec<u8>;
-        let mut missing_indices: Vec<u8>;
-        let mut possible: Vec<u8>;
-
-        // Look through rows
-        for i in 0..9 {
-            missing_values = board.row(i).values_missing();
-            if missing_values.is_empty() {
-                continue
-            }
-            missing_indices = board.row(i).indices_missing();
-
-            for val in missing_values {
-                possible = Vec::<u8>::new();
-
-                for ii in &missing_indices {
-                    if !board.column_from_index(*ii).contains(&val) {
-                        possible.push(*ii)
-                    }
-                }
-
-                if possible.len() == 1 {
-                    board.try_set(possible[0], val);
-                    return board
-                }
-            }
-        }
-
-        for i in 0..9 {
-            missing_values = board.column(i).values_missing();
-            if missing_values.is_empty() {
-                continue
-            }
-            missing_indices = board.column(i).indices_missing();
-
-            for val in missing_values {
-                possible = Vec::<u8>::new();
-
-                for ii in &missing_indices {
-                    if !board.row_from_index(*ii).contains(&val) {
-                        possible.push(*ii)
-                    }
-                }
-
-                if possible.len() == 1 {
-                    board.try_set(possible[0], val);
-                    return board
-                }
-            }
-        }
-
-        return board;
-    }
-}
-impl DirectSolvers for LastRemainingCellBlock {
-    fn solve(mut board: Board) -> Board {
-        let mut subset: Subset;
-        let mut valid_spots: Vec<u8>;
-
-        for i in 0..9 {
-            // Check if anything needs to be solved
-            subset = board.block(i);
-            if !subset.has_missing() {
-                continue
-            }
-
-            for val in subset.values_missing() {
-                // Collect th valid spots
-                // At the end, there will be checked if only
-                // one spot is valid, this is the one we're interested in
-                valid_spots = Vec::<u8>::new();
-                for ii in subset.indices_missing() {
-                    if board.row_from_index(ii).contains(&val)
-                        || board.column_from_index(ii).contains(&val) {
-                        continue
-                    }
-
-                    // If missing values not in the row and column
-                    // of the cell, then it is a valid spot for the solution
-                    valid_spots.push(ii);
-                }
-
-                // If only one spot is valid, we know the solution
-                if valid_spots.len() == 1 {
-                    board.try_set(valid_spots[0], val);
-                    return board
-                }
-            }
-        }
-        return board
-    }
-}
-impl DirectSolvers for LastPossibleNumber {
-    fn solve(mut board: Board) -> Board {
-        let mut values_in_rows: Subset;
-        let mut values_in_columns: Subset;
-        let mut union: Vec<u8>;
-
-        for i in board.blanks() {
-            values_in_rows = board.row_from_index(i);
-            values_in_columns = board.column_from_index(i);
-            union = values_in_rows.union(&values_in_columns);
-            if union.len() != 8 {
-                continue
-            }
-
-            for ii in 1..=9 {
-                if !union.contains(&ii) {
-                   continue
-                }
-                board.try_set(i, ii);
-                return board
-            }
-        }
-
-        return board
-    }
 }
 
 
@@ -214,6 +28,9 @@ pub trait SolveProbabilities {
 }
 
 
+/// LastRemainingCell
+///
+/// This deletes the probabilities of solved cells
 pub struct LastRemainingCell;
 
 impl SolveProbabilities for LastRemainingCell {
@@ -228,14 +45,14 @@ impl SolveProbabilities for LastRemainingCell {
 
         for i in 0..9 {
             subset = match orientation {
-                Orientation::Row => {board.row_from_index(i)},
-                Orientation::Column => {board.column_from_index(i)},
-                Orientation::Block => {board.block_from_index(i)}
+                Orientation::Row => {board.row(i)},
+                Orientation::Column => {board.column(i)},
+                Orientation::Block => {board.block(i)}
             };
 
             values_solved = subset.values_solved();
 
-            if values_solved.len() == 0 {
+            if values_solved.is_empty() {
                 continue
             }
 
@@ -267,82 +84,45 @@ impl SolveProbabilities for Naked {
 
     fn logic(board: &mut Board, orientation: Orientation) -> Board {
         let mut subset: Subset;
-        let mut board_index: usize;
-        let mut count: usize;
-        let mut probability_index: Vec<usize>;
         let mut naked: Vec<u8>;
-
         let mut unique_numbers: HashSet<u8>;
+        let mut other_cells: Vec<u8>;
 
         for i in 0..9 {
-
             subset = match orientation {
-                Orientation::Row => { board.row_from_index(i) },
-                Orientation::Column => { board.column_from_index(i) },
-                Orientation::Block => { board.block_from_index(i) }
+                Orientation::Row => { board.row(i) },
+                Orientation::Column => { board.column(i) },
+                Orientation::Block => { board.block(i) }
             };
 
+            for k in (2..=4).rev() {
+                for combination in subset.missing().iter().combinations(k) {
+                    unique_numbers = HashSet::<u8>::new();
+                    for c in &combination {
+                        unique_numbers.extend(c.as_set())
+                    }
 
-
-            for combination in subset.cells.iter().combinations(2) {
-
-                unique_numbers = HashSet::<u8>::new();
-                for c in combination {
-                    unique_numbers.extend(c.as_set())
-                }
-
-                if unique_numbers.len() == 2 {
-
-                }
-            }
-
-            probability_index = Vec::new();
-            naked = Vec::new();
-            for (ii, cell) in subset.cells.iter().enumerate() {
-                board_index = subset.indices[ii] as usize;
-
-                // Currently only naked pairs are supported
-                if cell.probabilities.len() != 2 {
-                    continue;
-                }
-
-                // Count how many cell share the same probabilities
-                count = subset.cells
-                    .iter()
-                    .filter(|&x| x.probabilities == cell.probabilities)
-                    .count();
-
-                if count != 2 {
-                    continue;
-                }
-
-                // Resolve probabilities
-                // Delete these specific probabilities
-                for p in &cell.probabilities {
-                    if naked.contains(&p) {
+                    if unique_numbers.len() != k {
                         continue
                     }
 
-                    naked.push(*p)
-                }
+                    naked = combination
+                        .iter()
+                        .map(|c| c.index)
+                        .collect();
 
-                probability_index.push(board_index)
+                    other_cells = subset.indices
+                        .iter()
+                        .filter(|index| !naked.contains(&index))
+                        .map(|index| *index)
+                        .collect();
+
+                    board.remove_probabilities_from_cells(other_cells,
+                                                          unique_numbers.iter().map(|n| *n).collect_vec())
+                    }
+                }
             }
 
-            for ii in subset.indices {
-                // Don't change for the naked cells
-                if probability_index.contains(&(ii as usize)) {
-                    continue
-                }
-
-                // Delete the solved probabilities
-                board.cells[ii as usize].probabilities = board.cells[ii as usize].probabilities
-                    .iter()
-                    .filter(|x| !naked.contains(x))
-                    .map(|x| *x as u8)
-                    .collect();
-            }
-        }
         return board.clone()
     }
 }
@@ -351,66 +131,87 @@ pub struct Hidden;
 
 impl SolveProbabilities for Hidden {
     fn orientations() -> Vec<Orientation> {
-        return vec![Orientation::Row, Orientation::Column, Orientation::Block];
+        vec![Orientation::Row, Orientation::Column, Orientation::Block]
     }
 
     fn logic(board: &mut Board, orientation: Orientation) -> Board {
         let mut subset: Subset;
-        let mut missing: Vec<Cell>;
-        let mut counts: Vec<u8>;
-        let mut index: u8;
+        let mut unique_numbers: HashSet<u8>;
+        let mut indices_combinations: Vec<u8>;
+        let mut other_cells: Vec<u8>;
 
         // Iterate over all 9 rows, columns and blocks
         for i in 0..9 {
+            println!("{:?}", orientation);
             subset = match orientation {
-                Orientation::Row => { board.row_from_index(i) },
-                Orientation::Column => { board.column_from_index(i) },
-                Orientation::Block => { board.block_from_index(i) }
+                Orientation::Row => board.row(i),
+                Orientation::Column => board.column(i),
+                Orientation::Block => board.block(i),
             };
 
-            // Get the missing cells
-            missing = subset.missing();
+            for k in (2..=4).rev() {
+                for combination in subset.missing().iter().combinations(k) {
+                    unique_numbers = HashSet::<u8>::new();
+                    for cell in &combination {
+                        unique_numbers.extend(cell.as_set());
+                    }
+                    indices_combinations = combination.iter().map(|cell| cell.index).collect();
 
-            // Get all single solutions
-            counts = (1..=9)
-                .map(|x| missing
-                    .iter()
-                    .filter(|c| c.probabilities.contains(&x))
-                    .count() as u8
-                )
-                .collect();
+                    other_cells = subset.indices.iter()
+                        .filter(|index| !indices_combinations.contains(index))
+                        .cloned()
+                        .collect();
+                    let mut possibly_hidden = unique_numbers.clone();
 
-            // println!("{:?}", counts);
-            // for r in &subset.cells {
-            //     print!("{:?}", r.probabilities);
-            // }
-            // println!();
+                    for number in &unique_numbers {
+                        if other_cells.iter().any(|&other_cell_index| board.cells[other_cell_index as usize].probabilities.contains(number)) {
+                            possibly_hidden.remove(number);
+                        }
+                    }
 
-            // Loop over the counts
-            // If probabilities are found that are present once
-            // This means this cell has to be that solution
-            for (i, count) in counts.iter().enumerate() {
-                if *count != 1 {
-                    continue
+                    // possibly_hidden
+                    if possibly_hidden.len() != k {
+                        continue;
+                    }
+
+                    // The number of matches from the possible hidden should be at least two
+                    if combination.iter().any(|c| {
+                        c.probabilities.iter().filter(|p| possibly_hidden.contains(p)).take(2).count() < 2
+                    }) {
+                        continue
+                    }
+
+                    println!("{:?} {:?}", possibly_hidden, k);
+                    println!("indices: {:?}", indices_combinations);
+
+                    // At this point we think the possibly hidden are hidden
+                    for cell in &subset.missing() {
+                        if indices_combinations.contains(&cell.index) {
+                            continue;
+                        }
+
+                        if cell.as_set().intersection(&possibly_hidden).count() > 0 {
+                            println!("A:{:?}", cell.index);
+                            board.cells[cell.index as usize].probabilities.retain(|&p| possibly_hidden.contains(&p));
+                        }
+                    }
+
+                    // Now update the cells that are part of the identified combination
+                    for cell in combination {
+                        board.cells[cell.index as usize].probabilities.retain(|&p| possibly_hidden.contains(&p));
+                    }
+
                 }
-
-                // Get the index of the cell with the one probability
-                index = subset.cells
-                    .iter()
-                    .filter(|c| c.contains(&((i + 1) as u8)))
-                    .map(|c| c.index)
-                    .collect::<Vec<u8>>()[0];
-
-                // Set the solution
-                board.cells[index as usize].set(&((i + 1) as u8))
             }
         }
-
-        return board.clone()
+        board.clone()
     }
 }
 
-
+/// Pointing uses block probabilities to eliminate probabilities for row/columns
+///
+/// When a block has no three and all three probabilities are on row 2, this
+/// means in adjacent blocks no three is probable on row 2
 pub struct Pointing;
 
 impl SolveProbabilities for Pointing {
@@ -433,8 +234,8 @@ impl SolveProbabilities for Pointing {
                 get_line = |b: &Board, i: u8 | -> Subset {b.row(i)};
             }
             Orientation::Column => {
-                get_row_or_colum_index = |c: &Cell | -> u8 {c.row()};
-                get_line = |b: &Board, i: u8 | -> Subset {b.row(i)};
+                get_row_or_colum_index = |c: &Cell | -> u8 {c.column()};
+                get_line = |b: &Board, i: u8 | -> Subset {b.column(i)};
             },
             _ => panic!("Block operation not allowed with Pointing strategy")
         };
@@ -452,16 +253,16 @@ impl SolveProbabilities for Pointing {
                     .into_iter()
                     .collect();
 
-                // When there are probabilities in multiple rows
+                // When there are probabilities in multiple rows within a block
                 // the pointing strategy won't work
                 if missing_line.len() != 1 {
                     continue
                 }
 
                 // Remove probabilities that are in the same row
-                // Prevent removing in the focal block (subset)
                 for c in get_line(board, missing_line[0]).cells.iter() {
-                    if subset.indices.contains(&c.index) || c.solved() {
+                    // Prevent removing in the focal block (subset)
+                    if c.block() == i || c.solved() {
                         continue
                     }
                     board.cells[c.index as usize].remove(p);
@@ -471,5 +272,4 @@ impl SolveProbabilities for Pointing {
 
         return board.clone()
     }
-
 }
