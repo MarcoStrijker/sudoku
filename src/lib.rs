@@ -1,5 +1,4 @@
-use std::collections::HashSet;
-
+use std::collections::{HashMap, HashSet};
 use itertools::Itertools;
 
 
@@ -13,8 +12,10 @@ impl IndexFormulas {
     fn block(i: u8, iter: u8) -> u8 { 27 * (i / 3) + 3 * (i % 3) + (iter / 3) * 9 + (iter % 3) }
 }
 
+
 enum BoardIndexFormulas{}
 
+#[allow(dead_code)]
 impl BoardIndexFormulas {
     fn row(i: u8, iter: u8) -> u8 {
         (i / 9) * 9 + iter
@@ -25,10 +26,10 @@ impl BoardIndexFormulas {
     fn block(i: u8, iter: u8) -> u8 { IndexFormulas::block(i / 3 - i / 9 * 3 + i / 27 * 3, iter) }
 }
 
-
+#[allow(dead_code)]
 pub struct Subset {
-    pub indices: Vec<u8>,
-    pub cells: Vec<Cell>
+    pub indices: [u8; 9],
+    pub cells: [Cell; 9]
 }
 
 
@@ -45,16 +46,27 @@ pub struct Subset {
 ///
 /// Returns:
 ///     Subset
+#[allow(dead_code)]
 impl Subset {
     fn from_board(board: &Board, i: u8, func: &dyn Fn(u8, u8) -> u8) -> Subset {
         return Subset {
             indices: (0..9)
                 .map(|x| func(i, x))
-                .collect(),
+                .collect::<Vec<u8>>()
+                .try_into()
+                .expect(""),
             cells: (0..9)
                 .map(|x| board.cells[usize::from(func(i, x))].clone())
-                .collect()
+                .collect::<Vec<Cell>>()
+                .try_into()
+                .expect("")
         }
+    }
+
+    pub fn is_solved(&self) -> bool {
+        return self.cells
+            .iter()
+            .all(|c| c.solved())
     }
 
     /// Wrapper for Vector.contains. Looks into the values of the
@@ -93,26 +105,12 @@ impl Subset {
     ///
     /// ### Returns:
     ///     The solved values (Vec<u8>)
-    pub fn values_solved(&self) -> Vec<u8> {
+    pub fn values_solved(&self) -> HashSet<u8> {
         return self.cells
             .iter()
             .filter(|c| c.solved())
             .map(|c| c.value())
             .collect()
-    }
-
-    pub fn values_missing(&self) -> Vec<u8> {
-        return self.cells
-            .iter()
-            .filter(|c| !c.solved())
-            .map(|c| c.value())
-            .collect()
-    }
-
-    pub fn has_missing(&self) -> bool {
-        return self.cells
-            .iter()
-            .any(|c| !c.solved())
     }
 
     /// Returns all unique solved values that are in self or other
@@ -141,39 +139,27 @@ impl Subset {
 
         return union;
     }
-
-    // pub fn get_cell_combinations(&self, n: u8) ->  {
-    //     return self.cells
-    //         .iter()
-    //         .enumerate()
-    //         .combinations(n as usize)
-    //         .collect();
-    //
-    // }
 }
 
 
 pub struct Board {
-    pub cells: Vec<Cell>,
-    pub history: Vec<Vec<Cell>>
+    pub cells: [Cell; 81],
+    pub history: Vec<[Cell; 81]>
 }
 
-
+#[allow(dead_code)]
 impl Board {
 
     /// Initialize board from a string
-    pub fn from_string(str: &String) -> Board {
-
-        if str.len() != 81 {
-            panic!("The string must be 81 characters")
-        }
-
-        let current_state: Vec<Cell> = str
+    pub fn from_string(string: &str) -> Board {
+        let current_state: [Cell; 81] = string
             .chars()
             .enumerate()
             .map(|(i, char)| Cell::from_number(i, char.to_digit(10).unwrap()))
-            .collect();
-        let current_history: Vec<Vec<Cell>> =  vec![current_state.clone()];
+            .collect::<Vec<Cell>>()
+            .try_into()
+            .expect("The string must be 81 characters");
+        let current_history: Vec<[Cell; 81]> =  vec![current_state.clone()];
 
         return Board {
             cells: current_state,
@@ -204,25 +190,25 @@ impl Board {
         let percentage_completed: f32 = self.cells
             .iter()
             .filter(|c| c.solved())
-            .count() as f32 / 81 as f32 * 100 as f32;
+            .count() as f32 / 81f32 * 100f32;
 
         println!();
         println!("{:?} - {:?}%", self.uncertainty(), percentage_completed);
         for (i, s) in string.chars().enumerate() {
-            // After each row, print a new line
             if i != 0 && i % 9 == 0 {
+                // After each row, print a new line
                 println!();
             }
 
-            // After three rows, print a row separation
             if i != 0 && i % 27 == 0 {
+                // After three rows, print a row separation
                 println!(" —  —  —   —  —  —   —  —  — ");
-            }
-
-            // Print column separators
-            if i != 0 && i % 3 == 0 && i % 9 != 0 {
+            } else if i != 0 && i % 3 == 0 && i % 9 != 0 {
+                // Print column separators
                 print!("|")
             }
+
+            // Print the solution
             print!(" {} ", s);
         }
         println!()
@@ -288,7 +274,6 @@ impl Board {
     ///
     /// Returns:
     ///     true if the set is valid, false if not (bool)
-    ///
     pub fn try_set(&mut self, index: u8, solution: u8) -> bool {
         if index > 80 {
             panic!("You've tried setting a number with a to high index. Not allowed")
@@ -346,7 +331,12 @@ impl Board {
         )
     }
 
-    /// # Solved
+    pub fn apply_strategy(& mut self, strategy: Strategy) {
+        for (i, probabilities) in strategy.remove {
+            self.cells[usize::from(i)].probabilities.retain(|p| !probabilities.contains(p))
+        }
+    }
+
     /// Checks if the board is solved
     ///
     /// ### Returns:
@@ -362,16 +352,18 @@ impl Board {
 
 impl PartialEq for Board {
     fn eq(&self, other: &Self) -> bool {
-        return self.history == other.history
+        return self.cells == other.cells
     }
 }
 
 #[derive(Clone)]
+#[derive(Debug)]
 pub struct Cell {
     pub index: u8,
     pub probabilities: Vec<u8>
 }
 
+#[allow(dead_code)]
 impl Cell {
     fn from_number(i: usize, number: u32) -> Cell {
         return Cell {
@@ -388,6 +380,11 @@ impl Cell {
         return self.index / 9
     }
 
+    /// Get the index of the column
+    /// For example, cell index 10 corresponds to column index 2
+    ///
+    /// ### Returns
+    ///     u8: index of the column
     pub fn column(&self) -> u8 {
         return self.index % 9
     }
@@ -400,8 +397,8 @@ impl Cell {
         return self.probabilities.contains(value)
     }
 
-    /// Force set a solution (probabilities wil be vector of one). No checks will be
-    /// executed
+    /// Force set a solution (probabilities will be a vector of one).
+    /// No checks will be executed
     pub fn set(&mut self, value: &u8) {
         self.probabilities = vec![*value]
     }
@@ -434,5 +431,30 @@ impl Cell {
 impl PartialEq for Cell {
     fn eq(&self, other: &Self) -> bool {
         return self.index == other.index && self.probabilities == other.probabilities
+    }
+}
+
+pub struct Strategy {
+    name: String,
+    remove: HashMap<u8, HashSet<u8>>,
+}
+
+impl Strategy {
+    pub fn new(name: String, remove: HashMap<u8, HashSet<u8>>) -> Strategy {
+        return Strategy {
+            name,
+            remove,
+        }
+    }
+
+    pub fn print(&self) {
+        if self.remove.is_empty() {
+            return
+        }
+
+        println!("Strategy: {:?}", self.name);
+        for (i, p) in &self.remove {
+            println!("For cell {:?}, will remove {:?}", i, p);
+        }
     }
 }
