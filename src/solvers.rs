@@ -1,4 +1,4 @@
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 use std::vec;
 use crate::lib::*;
 
@@ -9,21 +9,62 @@ use itertools::{Combinations, Itertools, rev};
 pub enum Orientation {
     Row,
     Column,
-    Block
+    Block,
 }
 
 
 pub trait SolveProbabilities {
+    fn name() -> String;
+    
     fn orientations() -> Vec<Orientation>;
 
-    fn logic(board: &mut Board, orientation: Orientation) -> Board;
+    fn logic(board: &Board, orientation: &Orientation, index: u8) -> Vec<Strategy>;
 
-    // Calculate for multiple orientations
-    fn calculate(board: &mut Board) -> Board {
+    /// Gets the strategy for the solver and applies the strategies to the board. Runs
+    /// the solver for its own orientations and for index 0-8
+    ///
+    /// ### Arguments
+    ///     board (mut Board): the sudoku
+    ///
+    /// ### Returns
+    ///     Board: the adjusted sudoku
+    fn apply_strategies(mut board: Board) -> Board {
+        let mut strategies: Vec<Strategy> = vec![];
         for orientation in Self::orientations() {
-            *board = Self::logic(board, orientation);
+            for i in 0..9 {
+                strategies.extend(Self::logic(&board, &orientation, i));
+            }
         }
-        return board.clone();
+
+        for s in strategies {
+            board.apply_strategy(s)
+        }
+
+        return board;
+    }
+
+    fn get_strategies(board: &Board) -> Vec<Strategy> {
+        let mut strategies: Vec<Strategy> = vec![];
+        for orientation in Self::orientations() {
+            for i in 0..9 {
+                strategies.extend(Self::logic(&board, &orientation, i));
+            }
+        }
+
+        for s in &strategies {
+            s.print();
+        }
+
+        return strategies;
+    }
+
+    /// Creates a default subset based on orientation and
+    fn create_subset(board: &Board, orientation: &Orientation, index: u8) -> Subset {
+        return match orientation {
+            Orientation::Row => { board.row(index) },
+            Orientation::Column => { board.column(index) },
+            Orientation::Block => { board.block(index) }
+        };
     }
 }
 
@@ -34,177 +75,186 @@ pub trait SolveProbabilities {
 pub struct LastRemainingCell;
 
 impl SolveProbabilities for LastRemainingCell {
+    fn name() -> String {
+        return String::from("LastRemainingCell")
+    }
+    
     fn orientations() -> Vec<Orientation> {
         return vec![Orientation::Row, Orientation::Column, Orientation::Block];
     }
 
-    fn logic(board: &mut Board, orientation: Orientation) -> Board {
-        let mut values_solved: Vec<u8>;
-        let mut subset: Subset;
+    fn logic(board: &Board, orientation: &Orientation, index: u8) -> Vec<Strategy> {
 
+        let mut strategies: Vec<Strategy> = vec![];
+        let subset: Subset = Self::create_subset(board, orientation, index);
+        let values_solved: HashSet<u8> = subset.values_solved();
 
-        for i in 0..9 {
-            subset = match orientation {
-                Orientation::Row => {board.row(i)},
-                Orientation::Column => {board.column(i)},
-                Orientation::Block => {board.block(i)}
-            };
+        if values_solved.is_empty() {
+            return strategies
+        }
 
-            values_solved = subset.values_solved();
-
-            if values_solved.is_empty() {
+        for i in subset.indices {
+            if board.cells[i as usize].solved() {
                 continue
             }
 
-            for ii in subset.indices {
-                if board.cells[ii as usize].solved() {
-                    continue
-                }
+            let probabilities_to_delete: HashSet<u8> = values_solved
+                .intersection(&board.cells[i as usize].as_set())
+                .cloned()
+                .collect();
 
-                // Delete solved numbers from cells
-                board.cells[ii as usize].probabilities = board.cells[ii as usize].probabilities
-                    .clone()
-                    .iter()
-                    .filter(|x| !values_solved.contains(x))
-                    .map(|x| *x)
-                    .collect();
-            }
+            strategies.push(
+                Strategy::new(
+                    Self::name(),
+                    HashMap::from(
+                        [(i, probabilities_to_delete)]
+                    )
+                )
+            );
         }
-
-        return board.clone();
+        return strategies
     }
 }
+
 
 pub struct Naked;
 
 impl SolveProbabilities for Naked {
+    fn name() -> String {
+        return String::from("LastRemainingCell")
+    }
+    
     fn orientations() -> Vec<Orientation> {
         return vec![Orientation::Row, Orientation::Column, Orientation::Block];
     }
 
-    fn logic(board: &mut Board, orientation: Orientation) -> Board {
-        let mut subset: Subset;
+    fn logic(board: &Board, orientation: &Orientation, index: u8) -> Vec<Strategy> {
+        let mut strategies: Vec<Strategy> = vec![];
         let mut naked: Vec<u8>;
         let mut unique_numbers: HashSet<u8>;
         let mut other_cells: Vec<u8>;
 
-        for i in 0..9 {
-            subset = match orientation {
-                Orientation::Row => { board.row(i) },
-                Orientation::Column => { board.column(i) },
-                Orientation::Block => { board.block(i) }
-            };
+        let subset: Subset = Self::create_subset(board, orientation, index);
 
-            for k in (2..=4).rev() {
-                for combination in subset.missing().iter().combinations(k) {
-                    unique_numbers = HashSet::<u8>::new();
-                    for c in &combination {
-                        unique_numbers.extend(c.as_set())
-                    }
-
-                    if unique_numbers.len() != k {
-                        continue
-                    }
-
-                    naked = combination
-                        .iter()
-                        .map(|c| c.index)
-                        .collect();
-
-                    other_cells = subset.indices
-                        .iter()
-                        .filter(|index| !naked.contains(&index))
-                        .map(|index| *index)
-                        .collect();
-
-                    board.remove_probabilities_from_cells(other_cells,
-                                                          unique_numbers.iter().map(|n| *n).collect_vec())
-                    }
+        for k in (2..=4).rev() {
+            for combination in subset.missing().iter().combinations(k) {
+                unique_numbers = HashSet::<u8>::new();
+                for c in &combination {
+                    unique_numbers.extend(c.as_set())
                 }
-            }
 
-        return board.clone()
+                if unique_numbers.len() != k {
+                    continue
+                }
+
+                // We want to get the index of the naked cells
+                naked = combination
+                    .iter()
+                    .map(|c| c.index)
+                    .collect();
+
+                // The same goes for the rest
+                other_cells = subset.indices
+                    .iter()
+                    .filter(|index| !naked.contains(&index))
+                    .map(|index| *index)
+                    .collect();
+
+
+                let hashmap: HashMap<u8, HashSet<u8>> = other_cells
+                    .iter()
+                    .map(|i| (*i, unique_numbers.clone()))
+                    .collect();
+
+                strategies.push(
+                    Strategy::new(
+                        Self::name(),
+                        hashmap
+                    )
+                )
+
+                // board.remove_probabilities_from_cells(other_cells,
+                //                                       unique_numbers.iter().map(|n| *n).collect_vec())
+            }
+        }
+
+        return strategies
     }
 }
 
 pub struct Hidden;
 
 impl SolveProbabilities for Hidden {
+    fn name() -> String {
+        return String::from("Hidden")
+    }
+
     fn orientations() -> Vec<Orientation> {
         vec![Orientation::Row, Orientation::Column, Orientation::Block]
     }
 
-    fn logic(board: &mut Board, orientation: Orientation) -> Board {
-        let mut subset: Subset;
+    fn logic(board: &Board, orientation: &Orientation, index: u8) -> Vec<Strategy> {
         let mut unique_numbers: HashSet<u8>;
         let mut indices_combinations: Vec<u8>;
         let mut other_cells: Vec<u8>;
+        let mut strategies: Vec<Strategy> = vec![];
 
         // Iterate over all 9 rows, columns and blocks
-        for i in 0..9 {
-            println!("{:?}", orientation);
-            subset = match orientation {
-                Orientation::Row => board.row(i),
-                Orientation::Column => board.column(i),
-                Orientation::Block => board.block(i),
-            };
+        let subset: Subset = Self::create_subset(board, orientation, index);
 
-            for k in (2..=4).rev() {
-                for combination in subset.missing().iter().combinations(k) {
-                    unique_numbers = HashSet::<u8>::new();
-                    for cell in &combination {
-                        unique_numbers.extend(cell.as_set());
-                    }
-                    indices_combinations = combination.iter().map(|cell| cell.index).collect();
-
-                    other_cells = subset.indices.iter()
-                        .filter(|index| !indices_combinations.contains(index))
-                        .cloned()
-                        .collect();
-                    let mut possibly_hidden = unique_numbers.clone();
-
-                    for number in &unique_numbers {
-                        if other_cells.iter().any(|&other_cell_index| board.cells[other_cell_index as usize].probabilities.contains(number)) {
-                            possibly_hidden.remove(number);
-                        }
-                    }
-
-                    // possibly_hidden
-                    if possibly_hidden.len() != k {
-                        continue;
-                    }
-
-                    // The number of matches from the possible hidden should be at least two
-                    if combination.iter().any(|c| {
-                        c.probabilities.iter().filter(|p| possibly_hidden.contains(p)).take(2).count() < 2
-                    }) {
-                        continue
-                    }
-
-                    println!("{:?} {:?}", possibly_hidden, k);
-                    println!("indices: {:?}", indices_combinations);
-
-                    // At this point we think the possibly hidden are hidden
-                    for cell in &subset.missing() {
-                        if indices_combinations.contains(&cell.index) {
-                            continue;
-                        }
-
-                        if cell.as_set().intersection(&possibly_hidden).count() > 0 {
-                            println!("A:{:?}", cell.index);
-                            board.cells[cell.index as usize].probabilities.retain(|&p| possibly_hidden.contains(&p));
-                        }
-                    }
-
-                    // Now update the cells that are part of the identified combination
-                    for cell in combination {
-                        board.cells[cell.index as usize].probabilities.retain(|&p| possibly_hidden.contains(&p));
-                    }
-
+        for k in (1..=4).rev() {
+            for combination in subset.missing().iter().combinations(k) {
+                unique_numbers = HashSet::<u8>::new();
+                for cell in &combination {
+                    unique_numbers.extend(cell.as_set());
                 }
+                indices_combinations = combination.iter().map(|cell| cell.index).collect();
+
+                other_cells = subset.indices.iter()
+                    .filter(|index| !indices_combinations.contains(index))
+                    .cloned()
+                    .collect();
+                let mut possibly_hidden = unique_numbers.clone();
+
+                for number in &unique_numbers {
+                    if other_cells.iter().any(|&other_cell_index| board.cells[other_cell_index as usize].probabilities.contains(number)) {
+                        possibly_hidden.remove(number);
+                    }
+                }
+
+                // possibly_hidden
+                if possibly_hidden.len() != k {
+                    continue;
+                }
+
+                // The number of matches from the possible hidden should be at least two
+                if combination.iter().any(|c| {
+                    c.probabilities.iter().filter(|p| possibly_hidden.contains(p)).take(2).count() < 2
+                }) {
+                    continue
+                }
+
+                let mut hashmap: HashMap<u8, HashSet<u8>> = HashMap::new();
+
+                for c in combination {
+                    let set: HashSet<u8> = c.as_set().difference(&possibly_hidden).map(|p| *p).collect();
+                    hashmap.insert(c.index, set);
+                }
+
+                // // Now update the cells that are part of the identified combination
+                // for cell in combination {
+                //     board.cells[cell.index as usize].probabilities.retain(|&p| possibly_hidden.contains(&p));
+                // }
+                strategies.push(
+                    Strategy::new(
+                        Self::name(),
+                        hashmap
+                    )
+                )
+
             }
         }
-        board.clone()
+        return strategies
     }
 }
 
@@ -215,13 +265,18 @@ impl SolveProbabilities for Hidden {
 pub struct Pointing;
 
 impl SolveProbabilities for Pointing {
+    fn name() -> String {
+        String::from("LastRemainingCell")
+    }
+    
     fn orientations() -> Vec<Orientation> {
         return vec![Orientation::Row, Orientation::Column];
     }
 
-    fn logic(board: &mut Board, orientation: Orientation) -> Board {
-        let mut subset: Subset;
-        let mut missing: Vec<Cell>;
+    fn logic(board: &Board, orientation: &Orientation, index: u8) -> Vec<Strategy> {
+        let subset: Subset;
+        let missing: Vec<Cell>;
+        let mut strategies: Vec<Strategy> = vec![];
         let mut missing_line: Vec<u8>;
 
         let get_row_or_colum_index: fn(&Cell) -> u8;
@@ -240,36 +295,151 @@ impl SolveProbabilities for Pointing {
             _ => panic!("Block operation not allowed with Pointing strategy")
         };
 
-        for i in 0..9 {
-            subset = board.block(i);
-            missing = subset.missing();
-            for p in 1..=9 {
-                missing_line = missing
-                    .clone()
-                    .into_iter()
-                    .filter(|c| c.contains(&p))
-                    .map(|c| get_row_or_colum_index(&c))
-                    .collect::<HashSet<u8>>()
-                    .into_iter()
-                    .collect();
+        subset = board.block(index);
 
-                // When there are probabilities in multiple rows within a block
-                // the pointing strategy won't work
-                if missing_line.len() != 1 {
-                    continue
-                }
-
-                // Remove probabilities that are in the same row
-                for c in get_line(board, missing_line[0]).cells.iter() {
-                    // Prevent removing in the focal block (subset)
-                    if c.block() == i || c.solved() {
-                        continue
-                    }
-                    board.cells[c.index as usize].remove(p);
-                }
-            }
+        if subset.is_solved() {
+            return strategies
         }
 
-        return board.clone()
+        missing = subset.missing();
+        let values_solved: HashSet<u8> = subset.values_solved();
+
+        for p in 1..=9 {
+            if values_solved.contains(&p) {
+                continue
+            }
+
+            missing_line = missing
+                .clone()
+                .into_iter()
+                .filter(|c| c.contains(&p) && !c.solved())
+                .map(|c| get_row_or_colum_index(&c))
+                .collect::<HashSet<u8>>()
+                .into_iter()
+                .collect();
+
+            // When there are probabilities in multiple rows within a block
+            // the pointing strategy won't work
+            if missing_line.len() != 1 {
+                continue
+            }
+
+            let hashmap: HashMap<u8, HashSet<u8>> = get_line(board, missing_line[0])
+                .cells
+                .iter()
+                .filter(|c| c.block() != index && !c.solved())
+                .map(|c| (c.index, HashSet::from([p])))
+                .collect();
+
+            strategies.push(
+                Strategy::new(
+                    Self::name(),
+                    hashmap
+                )
+            );
+        }
+
+        return strategies
+    }
+}
+
+
+pub struct BoxLineReduction;
+
+impl SolveProbabilities for BoxLineReduction {
+    fn name() -> String {
+        return String::from("BoxLineReduction")
+    }
+
+    fn orientations() -> Vec<Orientation> {
+        return vec![Orientation::Row, Orientation::Column]
+    }
+
+    fn logic(board: &Board, orientation: &Orientation, index: u8) -> Vec<Strategy> {
+        let mut strategies: Vec<Strategy> = vec![];
+
+        let subset = Self::create_subset(board, orientation, index);
+        if subset.is_solved() {
+            return strategies
+        }
+
+        let get_row_or_colum_index: fn(&Cell) -> u8;
+
+        // Create function that have gets rows/columns respective to the orientation
+        match orientation {
+            Orientation::Row => {
+                get_row_or_colum_index = |c: &Cell | -> u8 {c.row()};
+            }
+            Orientation::Column => {
+                get_row_or_colum_index = |c: &Cell | -> u8 {c.column()};
+            },
+            _ => panic!("Block operation not allowed with Pointing strategy")
+        };
+
+        for p in 1..=9 {
+            let block_indices: Vec<u8> = subset.missing()
+                .iter()
+                .filter(|c| c.contains(&p) && !c.solved())
+                .map(|c| c.block())
+                .collect();
+
+            if block_indices.iter().map(|n| *n).unique().collect::<Vec<u8>>().len() != 1 || block_indices.len() <= 1{
+                continue
+            }
+
+            let block: Subset = board.block(block_indices[0]);
+
+            if block.is_solved() {
+                continue
+            }
+
+            let _strategy: HashMap<u8, HashSet<u8>> = block
+                .cells
+                .iter()
+                .filter(|c| get_row_or_colum_index(&c) == index && c.contains(&p))
+                .map(|c| (c.index, HashSet::from([p])))
+                .collect();
+
+            let hashmap: HashMap<u8, HashSet<u8>> = block
+                .cells
+                .iter()
+                .filter(|c| get_row_or_colum_index(&c) != index && !c.solved() && c.contains(&p))
+                .map(|c| (c.index, HashSet::from([p])))
+                .collect();
+
+            if hashmap.len() == 0 {
+                continue
+            }
+
+            strategies.push(
+                Strategy::new(
+                    Self::name(),
+                    hashmap.clone()
+                )
+            );
+
+            println!("{:?}", orientation);
+            println!("{:?}", board.cells[63].probabilities);
+            strategies[strategies.len() - 1].print();
+            println!("{:?}", _strategy);
+        }
+        return strategies
+    }
+}
+
+
+struct XWing;
+
+impl SolveProbabilities for XWing {
+    fn name() -> String {
+        return String::from("XWing")
+    }
+
+    fn orientations() -> Vec<Orientation> {
+        todo!()
+    }
+
+    fn logic(board: &Board, orientation: &Orientation, index: u8) -> Vec<Strategy> {
+        todo!()
     }
 }
