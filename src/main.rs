@@ -8,8 +8,8 @@ use crate::solvers::*;
 use crate::utils::brute_force;
 
 fn main() {
-    // let start = String::from("400000938032094100095300240370609004529001673604703090957008300003900400240030709");
-    let start = String::from("065370002000001370000640800097004028080090001100020940040006700070018050230900060");
+    let start = String::from("400000938032094100095300240370609004529001673604703090957008300003900400240030709");
+    // let start = String::from("065370002000001370000640800097004028080090001100020940040006700070018050230900060");
     let board = Board::from_string(&start);
     board.print_board();
 
@@ -21,9 +21,14 @@ fn main() {
         Naked::get_strategies,
         Hidden::get_strategies,
         Pointing::get_strategies,
+        BoxLineReduction::get_strategies,
     ];
 
-    for _ in 0..6 {
+    for _ in 0..9 {
+        if super_board.solved() {
+            break
+        }
+
         super_board = LastRemainingCell::get_and_apply_strategies(super_board);
         for s in &solvers {
             strategies = s(&super_board);
@@ -32,7 +37,7 @@ fn main() {
                 continue
             }
 
-            super_board = SolveProbabilities::apply_strategies(super_board, strategies);
+            super_board = <LastRemainingCell as SolveProbabilities>::apply_strategies(super_board, strategies);
             break
         }
 
