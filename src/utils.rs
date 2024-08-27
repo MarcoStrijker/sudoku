@@ -9,6 +9,7 @@ use crate::lib::Board;
 ///
 /// ### Returns:
 ///     The solved board
+#[allow(dead_code)]
 pub fn brute_force(mut board: Board) -> Board {
     let mut valid: bool;
     let mut current_index_board: u8;
@@ -60,6 +61,7 @@ pub fn brute_force(mut board: Board) -> Board {
 ///     A Vector containing a Vector that represents a sudoku,
 ///     the first element is the puzzle and the second the solution
 ///
+#[allow(dead_code)]
 pub fn import_puzzles_from_file() -> Vec<Vec<String>> {
     return fs::read_to_string(r"puzzles.txt")
         .expect("It should read the file")
