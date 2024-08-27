@@ -3,28 +3,38 @@ mod solvers;
 mod utils;
 
 use std::iter::zip;
-use crate::lib::Board;
+use crate::lib::{Board, Strategy};
 use crate::solvers::*;
 use crate::utils::brute_force;
 
 fn main() {
-    let start = String::from("400000938032094100095300240370609004529001673604703090957008300003900400240030709");
-    // let start = String::from("065370002000001370000640800097004028080090001100020940040006700070018050230900060");
+    // let start = String::from("400000938032094100095300240370609004529001673604703090957008300003900400240030709");
+    let start = String::from("065370002000001370000640800097004028080090001100020940040006700070018050230900060");
     let board = Board::from_string(&start);
     board.print_board();
 
     let mut super_board: Board = board.clone();
+    let mut strategies: Vec<Strategy>;
     let correct: Board = brute_force(board);
 
-    for _ in 0..6 {
-        super_board = LastRemainingCell::apply_strategies(super_board);
-        super_board = Naked::apply_strategies(super_board);
-        super_board = Hidden::apply_strategies(super_board);
-        super_board = Pointing::apply_strategies(super_board);
+    let solvers: Vec<fn(&Board) -> Vec<Strategy>> = vec![
+        Naked::get_strategies,
+        Hidden::get_strategies,
+        Pointing::get_strategies,
+    ];
 
-        super_board.print_board();
-        println!("{:?}", super_board.to_string());
-        super_board = BoxLineReduction::apply_strategies(super_board);
+    for _ in 0..6 {
+        super_board = LastRemainingCell::get_and_apply_strategies(super_board);
+        for s in &solvers {
+            strategies = s(&super_board);
+
+            if strategies.is_empty() {
+                continue
+            }
+
+            super_board = SolveProbabilities::apply_strategies(super_board, strategies);
+            break
+        }
 
         for (a, b) in zip(&super_board.cells, &correct.cells) {
             if !a.solved() {
@@ -69,12 +79,12 @@ mod tests {
         );
 
         // We need to resolve all regular probabilities first
-        board = LastRemainingCell::apply_strategies(board);
+        board = LastRemainingCell::get_and_apply_strategies(board);
 
         assert_eq!(true, board.cells[9].contains(&3));
         assert_eq!(true, board.cells[10].contains(&3));
         assert_eq!(true, board.cells[11].contains(&3));
-        board = Pointing::apply_strategies(board);
+        board = Pointing::get_and_apply_strategies(board);
         assert_eq!(false, board.cells[9].contains(&3));
         assert_eq!(false, board.cells[10].contains(&3));
         assert_eq!(false, board.cells[11].contains(&3));
@@ -87,13 +97,13 @@ mod tests {
         );
 
         // We need to resolve all regular probabilities first
-        board = LastRemainingCell::apply_strategies(board);
+        board = LastRemainingCell::get_and_apply_strategies(board);
 
         assert_eq!(true, board.cells[41].contains(&3));
         assert_eq!(true, board.cells[59].contains(&3));
         assert_eq!(true, board.cells[68].contains(&3));
         assert_eq!(true, board.cells[77].contains(&3));
-        board = Pointing::apply_strategies(board);
+        board = Pointing::get_and_apply_strategies(board);
         assert_eq!(false, board.cells[41].contains(&3));
 
         assert_eq!(true, board.cells[59].contains(&3));
@@ -108,14 +118,14 @@ mod tests {
         );
 
         // We need to resolve all regular probabilities first
-        board = LastRemainingCell::apply_strategies(board);
+        board = LastRemainingCell::get_and_apply_strategies(board);
 
         assert_eq!(true, board.cells[3].contains(&2));
         assert_eq!(true, board.cells[4].contains(&2));
         assert_eq!(true, board.cells[13].contains(&2));
         assert_eq!(true, board.cells[21].contains(&2));
         assert_eq!(true, board.cells[22].contains(&2));
-        board = BoxLineReduction::apply_strategies(board);
+        board = BoxLineReduction::get_and_apply_strategies(board);
         assert_eq!(true, board.cells[3].contains(&2));
         assert_eq!(true, board.cells[4].contains(&2));
 
@@ -131,7 +141,7 @@ mod tests {
         );
 
         // We need to resolve all regular probabilities first
-        board = LastRemainingCell::apply_strategies(board);
+        board = LastRemainingCell::get_and_apply_strategies(board);
 
         assert_eq!(true, board.cells[28].contains(&6));
         assert_eq!(true, board.cells[29].contains(&6));
@@ -146,7 +156,7 @@ mod tests {
         assert_eq!(true, board.cells[72].contains(&3));
         assert_eq!(true, board.cells[74].contains(&3));
 
-        board = BoxLineReduction::apply_strategies(board);
+        board = BoxLineReduction::get_and_apply_strategies(board);
         assert_eq!(true, board.cells[28].contains(&6));
         assert_eq!(false, board.cells[29].contains(&6));
         assert_eq!(true, board.cells[37].contains(&6));
@@ -168,10 +178,10 @@ mod tests {
         );
 
         // We need to resolve all regular probabilities first
-        board = LastRemainingCell::apply_strategies(board);
+        board = LastRemainingCell::get_and_apply_strategies(board);
 
         assert_eq!(true, board.cells[79].contains(&6));
-        board = BoxLineReduction::apply_strategies(board);
+        board = BoxLineReduction::get_and_apply_strategies(board);
         assert_eq!(false, board.cells[79].contains(&6));
     }
 
@@ -183,7 +193,7 @@ mod tests {
         );
 
         // We need to resolve all regular probabilities first
-        board = LastRemainingCell::apply_strategies(board);
+        board = LastRemainingCell::get_and_apply_strategies(board);
 
         assert_eq!(true, board.cells[3].contains(&1));
         assert_eq!(true, board.cells[4].contains(&1));
@@ -193,7 +203,7 @@ mod tests {
         assert_eq!(true, board.cells[18].contains(&7));
         assert_eq!(true, board.cells[22].contains(&6));
         assert_eq!(true, board.cells[22].contains(&7));
-        board = Naked::apply_strategies(board);
+        board = Naked::get_and_apply_strategies(board);
         assert_eq!(false, board.cells[3].contains(&1));
         assert_eq!(false, board.cells[4].contains(&1));
         assert_eq!(false, board.cells[4].contains(&6));
@@ -211,7 +221,7 @@ mod tests {
         );
 
         // We need to resolve all regular probabilities first
-        board = LastRemainingCell::apply_strategies(board);
+        board = LastRemainingCell::get_and_apply_strategies(board);
 
         assert_eq!(true, board.cells[36].contains(&5));
         assert_eq!(true, board.cells[36].contains(&9));
@@ -224,7 +234,7 @@ mod tests {
         assert_eq!(true, board.cells[43].contains(&8));
         assert_eq!(true, board.cells[43].contains(&9));
 
-        board = Naked::apply_strategies(board);
+        board = Naked::get_and_apply_strategies(board);
         assert_eq!(false, board.cells[36].contains(&5));
         assert_eq!(false, board.cells[36].contains(&9));
         assert_eq!(false, board.cells[38].contains(&5));
@@ -245,7 +255,7 @@ mod tests {
         );
 
         // We need to resolve all regular probabilities first
-        board = LastRemainingCell::apply_strategies(board);
+        board = LastRemainingCell::get_and_apply_strategies(board);
 
         assert_eq!(true, board.cells[1].contains(&1));
         assert_eq!(true, board.cells[1].contains(&5));
@@ -254,7 +264,7 @@ mod tests {
         assert_eq!(true, board.cells[11].contains(&6));
         assert_eq!(true, board.cells[11].contains(&8));
         assert_eq!(true, board.cells[20].contains(&6));
-        board = Naked::apply_strategies(board);
+        board = Naked::get_and_apply_strategies(board);
         assert_eq!(false, board.cells[1].contains(&1));
         assert_eq!(false, board.cells[1].contains(&5));
         assert_eq!(false, board.cells[2].contains(&5));
@@ -275,7 +285,7 @@ mod tests {
         );
 
         // We need to resolve all regular probabilities first
-        board = LastRemainingCell::apply_strategies(board);
+        board = LastRemainingCell::get_and_apply_strategies(board);
 
         assert_eq!(true, board.cells[7].contains(&2));
         assert_eq!(true, board.cells[7].contains(&3));
@@ -286,7 +296,7 @@ mod tests {
         assert_eq!(true, board.cells[8].contains(&4));
         assert_eq!(true, board.cells[8].contains(&5));
         assert_eq!(true, board.cells[8].contains(&9));
-        board = Hidden::apply_strategies(board);
+        board = Hidden::get_and_apply_strategies(board);
         assert_eq!(false, board.cells[7].contains(&2));
         assert_eq!(false, board.cells[7].contains(&3));
         assert_eq!(false, board.cells[7].contains(&4));
@@ -311,7 +321,7 @@ mod tests {
         );
 
         // We need to resolve all regular probabilities first
-        board = LastRemainingCell::apply_strategies(board);
+        board = LastRemainingCell::get_and_apply_strategies(board);
 
         assert_eq!(true, board.cells[3].contains(&4));
         assert_eq!(true, board.cells[3].contains(&7));
@@ -322,7 +332,7 @@ mod tests {
         assert_eq!(true, board.cells[8].contains(&7));
         assert_eq!(true, board.cells[8].contains(&8));
         assert_eq!(true, board.cells[8].contains(&9));
-        board = Hidden::apply_strategies(board);
+        board = Hidden::get_and_apply_strategies(board);
         assert_eq!(false, board.cells[3].contains(&4));
         assert_eq!(false, board.cells[3].contains(&7));
         assert_eq!(false, board.cells[3].contains(&8));
@@ -347,7 +357,7 @@ mod tests {
         );
 
         // We need to resolve all regular probabilities first
-        board = LastRemainingCell::apply_strategies(board);
+        board = LastRemainingCell::get_and_apply_strategies(board);
 
         assert_eq!(true, board.cells[30].contains(&3));
         assert_eq!(true, board.cells[30].contains(&7));
@@ -362,7 +372,7 @@ mod tests {
         assert_eq!(true, board.cells[50].contains(&5));
         assert_eq!(true, board.cells[50].contains(&7));
         assert_eq!(true, board.cells[50].contains(&8));
-        board = Hidden::apply_strategies(board);
+        board = Hidden::get_and_apply_strategies(board);
         assert_eq!(false, board.cells[30].contains(&3));
         assert_eq!(false, board.cells[30].contains(&7));
         assert_eq!(false, board.cells[30].contains(&8));
