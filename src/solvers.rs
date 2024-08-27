@@ -10,8 +10,10 @@ pub enum Orientation {
     Row,
     Column,
     Block,
+    None
 }
 
+const NO_STRATEGIES: Vec<Strategy> = vec![];
 
 pub trait SolveProbabilities {
     fn name() -> String;
@@ -28,13 +30,8 @@ pub trait SolveProbabilities {
     ///
     /// ### Returns
     ///     Board: the adjusted sudoku
-    fn apply_strategies(mut board: Board) -> Board {
-        let mut strategies: Vec<Strategy> = vec![];
-        for orientation in Self::orientations() {
-            for i in 0..9 {
-                strategies.extend(Self::logic(&board, &orientation, i));
-            }
-        }
+    fn get_and_apply_strategies(mut board: Board) -> Board {
+        let mut strategies: Vec<Strategy> = Self::get_strategies(&board);
 
         for s in strategies {
             board.apply_strategy(s)
@@ -51,11 +48,19 @@ pub trait SolveProbabilities {
             }
         }
 
-        for s in &strategies {
-            s.print();
-        }
+        // for s in &strategies {
+        //     s.print();
+        // }
 
         return strategies;
+    }
+
+    fn apply_strategies(mut board: Board, strategies: Vec<Strategy>) -> Board {
+        for s in strategies {
+            board.apply_strategy(s)
+        }
+
+        return board;
     }
 
     /// Creates a default subset based on orientation and
@@ -292,7 +297,7 @@ impl SolveProbabilities for Pointing {
                 get_row_or_colum_index = |c: &Cell | -> u8 {c.column()};
                 get_line = |b: &Board, i: u8 | -> Subset {b.column(i)};
             },
-            _ => panic!("Block operation not allowed with Pointing strategy")
+            _ => panic!("Only Row/Column orientation is allowed with Pointing strategy")
         };
 
         subset = board.block(index);
@@ -357,8 +362,8 @@ impl SolveProbabilities for BoxLineReduction {
 
     fn logic(board: &Board, orientation: &Orientation, index: u8) -> Vec<Strategy> {
         let mut strategies: Vec<Strategy> = vec![];
-
         let subset = Self::create_subset(board, orientation, index);
+
         if subset.is_solved() {
             return strategies
         }
@@ -373,7 +378,7 @@ impl SolveProbabilities for BoxLineReduction {
             Orientation::Column => {
                 get_row_or_colum_index = |c: &Cell | -> u8 {c.column()};
             },
-            _ => panic!("Block operation not allowed with Pointing strategy")
+            _ => panic!("Only Row/Column orientation is allowed with Pointing strategy")
         };
 
         for p in 1..=9 {
@@ -435,11 +440,41 @@ impl SolveProbabilities for XWing {
         return String::from("XWing")
     }
 
+    /// Orientation is arbitrary, could be columns as well
     fn orientations() -> Vec<Orientation> {
-        todo!()
+        return vec![Orientation::Row]
     }
 
     fn logic(board: &Board, orientation: &Orientation, index: u8) -> Vec<Strategy> {
-        todo!()
+        let subset: Subset = board.row(index);
+        let missing_subset: Vec<Cell> = subset.missing();
+
+        if missing_subset.len() <= 2 {
+            return NO_STRATEGIES
+        }
+
+        for p in 1..=9 {
+            for combination in missing_subset.iter().combinations(2) {
+                if combination.iter().any(|c| !c.contains(&p)) {
+                    continue
+                }
+
+                let missing_in_first_column: Vec<Cell> = board
+                    .column(combination[0].index)
+                    .missing()
+                    .iter()
+                    // We want to keep only the cells that contain the probability and is another block
+                    .filter(|c| c.contains(&p) && c.block() != combination[0].index)
+                    .collect();
+
+                if missing_in_first_column.is_empty() {
+                    continue
+                }
+
+                for
+            }
+        }
+
+        return NO_STRATEGIES
     }
 }
