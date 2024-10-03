@@ -1,10 +1,16 @@
+#![allow(clippy::needless_return)]
+
 use std::collections::{HashMap, HashSet};
 use itertools::Itertools;
 
 
-enum IndexFormulas{}
+/// Contains the formulas to get the index of the row, column and block
+///
+/// The input is the index of a certain cell
+///
+enum SubsetIndexToSubset {}
 
-impl IndexFormulas {
+impl SubsetIndexToSubset {
     fn row(i: u8, iter: u8) -> u8 { i * 9 + iter }
     fn column(i: u8, iter: u8) -> u8 {
         iter * 9 + i
@@ -23,7 +29,7 @@ impl BoardIndexFormulas {
     fn column(i: u8, iter: u8) -> u8 {
         i % 9 + 9 * iter
     }
-    fn block(i: u8, iter: u8) -> u8 { IndexFormulas::block(i / 3 - i / 9 * 3 + i / 27 * 3, iter) }
+    fn block(i: u8, iter: u8) -> u8 { SubsetIndexToSubset::block(i / 3 - i / 9 * 3 + i / 27 * 3, iter) }
 }
 
 #[allow(dead_code)]
@@ -34,7 +40,7 @@ pub struct Subset {
 
 
 /// Initializes a subset of Cells from a board instance based on the requested
-/// index and passed function. Eligible functions can be found in IndexFormulas
+/// index and passed function. Eligible functions can be found in SubsetIndexToSubset
 /// and BoardIndexFormulas
 ///
 /// Args:
@@ -155,7 +161,7 @@ impl Board {
         let current_state: [Cell; 81] = string
             .chars()
             .enumerate()
-            .map(|(i, char)| Cell::from_number(i, char.to_digit(10).unwrap()))
+            .map(|(i, char)| Cell::from_number(i, char.to_digit(10).unwrap() as u8))
             .collect::<Vec<Cell>>()
             .try_into()
             .expect("The string must be 81 characters");
@@ -185,6 +191,11 @@ impl Board {
             .collect();
     }
 
+    /// ### Prints the board
+    ///
+    /// Prints the board in a human readable format, creates nice blocks.
+    /// Also prints the percentage of the board that is solved, and the number of probabilities
+    /// left in the board. This indicates the progression of a certain strategy.
     pub fn print_board(&self) {
         let string: String = self.to_string();
         let percentage_completed: f32 = self.cells
@@ -219,7 +230,6 @@ impl Board {
     ///
     /// ### Returns:
     ///     Number of probabilities (usize)
-    ///
     fn uncertainty(&self) -> usize {
         return self.cells
             .iter()
@@ -227,7 +237,10 @@ impl Board {
             .sum::<usize>()
     }
 
-    /// Get a vector with the index of the blank cells
+    /// ### Get a vector with the index of the blank cells
+    ///
+    /// ### Returns:
+    ///    Vector with the index of the blank cells (Vec<u8>)
     pub fn blanks(&self) -> Vec<u8> {
         return self.cells
             .iter()
@@ -300,15 +313,15 @@ impl Board {
     }
 
     pub fn row(&self, i: u8) -> Subset {
-        return Subset::from_board(self, i, &IndexFormulas::row)
+        return Subset::from_board(self, i, &SubsetIndexToSubset::row)
     }
 
     pub fn column(&self, i: u8) -> Subset {
-        return Subset::from_board(self, i, &IndexFormulas::column)
+        return Subset::from_board(self, i, &SubsetIndexToSubset::column)
     }
 
     pub fn block(&self, i: u8) -> Subset {
-        return Subset::from_board(self, i, &IndexFormulas::block)
+        return Subset::from_board(self, i, &SubsetIndexToSubset::block)
     }
 
     pub fn row_from_index(&self, i: u8) -> Subset {
@@ -350,12 +363,27 @@ impl Board {
 
 }
 
+/// Equality implementation for Board
+///
+/// ### Arguments
+///    other (&Self): other board to compare
+///
+/// ### Returns:
+///    bool: if the board is the same
 impl PartialEq for Board {
     fn eq(&self, other: &Self) -> bool {
         return self.cells == other.cells
     }
 }
 
+
+/// Cell
+///
+/// Contains the index of the cell and the probabilities. The probabilities are
+/// a vector of u8. If the cell is solved, the vector will contain one value.
+///
+/// The cell also contains methods to get the row, column and block of the cell.
+///
 #[derive(Clone)]
 #[derive(Debug)]
 pub struct Cell {
@@ -365,45 +393,89 @@ pub struct Cell {
 
 #[allow(dead_code)]
 impl Cell {
-    fn from_number(i: usize, number: u32) -> Cell {
+
+    /// Creates a new cell
+    ///
+    /// The cell will have the index and the number as a probability. If the number is 0,
+    /// this means that the cell is empty and the probabilities will be 1-9.
+    ///
+    /// ### Arguments:
+    ///    i (usize): index of the cell
+    ///    number (u8): number in the cell
+    ///
+    /// ### Returns
+    ///   Cell
+    fn from_number(i: usize, number: u8) -> Cell {
         return Cell {
             index: i as u8,
-            probabilities: if number == 0 {vec![1,2,3,4,5,6,7,8,9]} else {vec![number as u8]}
+            probabilities: if number == 0 {vec![1,2,3,4,5,6,7,8,9]} else {vec![number]}
         }
     }
 
+    /// Get the probabilities as a set
+    ///
+    /// This makers it easier to combine and compare sets
+    ///
+    /// ### Returns
+    ///   HashSet<u8>: set of probabilities
     pub fn as_set(&self) -> HashSet<u8> {
         return HashSet::from_iter(self.probabilities.clone())
     }
 
+    /// Get the index of the row
+    ///
+    /// For example, cell index 10 corresponds to row index 1, 18 to 2
+    ///
+    /// ### Returns
+    ///    u8: index of the row
     pub fn row(&self) -> u8 {
         return self.index / 9
     }
 
     /// Get the index of the column
-    /// For example, cell index 10 corresponds to column index 2
+    ///
+    /// For example, cell index 10 corresponds to column index 1
     ///
     /// ### Returns
-    ///     u8: index of the column
+    ///   u8: index of the column
     pub fn column(&self) -> u8 {
         return self.index % 9
     }
 
+    /// Get the index of the block
+    ///
+    /// For example, cell index 8 corresponds to block index 2, but 10 to 1
+    ///
+    /// ### Returns
+    ///   u8: index of the block
     pub fn block(&self) -> u8 {
         return self.index / 3 - self.index / 9 * 3 + self.index / 27 * 3
     }
 
+    /// Check if the cell probabilities contain a value
+    ///
+    /// ### Arguments
+    ///  value (&u8): the value that should be checked
+    ///
+    /// ### Returns
+    ///   bool: if the value is in the probabilities
     pub fn contains(&self, value: &u8) -> bool {
         return self.probabilities.contains(value)
     }
 
     /// Force set a solution (probabilities will be a vector of one).
     /// No checks will be executed
+    ///
+    /// ### Arguments
+    ///   value (&u8): the value that should be set
     pub fn set(&mut self, value: &u8) {
         self.probabilities = vec![*value]
     }
 
     /// Removes a probability from the probabilities
+    ///
+    /// ### Arguments
+    ///   value (u8): the value that should be removed
     pub fn remove(&mut self, value: u8) {
         if !self.probabilities.contains(&value) {
             return;
@@ -412,34 +484,74 @@ impl Cell {
         self.probabilities.retain(|p| p != &value)
     }
 
+    /// Get the value of the cell
+    ///
+    /// If the cell is solved, the value will be the solution, otherwise 0
+    ///
+    /// ### Returns
+    ///   u8: the value of the cell
     pub fn value(&self) -> u8 {
         return if self.solved() {self.probabilities[0]} else {0}
     }
 
+    /// Check if the cell is solved
+    ///
+    /// This is the case if the length of the probabilities is 1
+    ///
+    /// ### Returns
+    ///   bool: if the cell is solved
     pub fn solved(&self) -> bool {
         return self.probabilities.len() == 1
     }
 
+    /// Clone the cell
+    ///
+    /// ### Returns
+    ///   Cell: the cloned cell
     pub fn clone(&self) -> Cell {
         return Cell {
-            index: self.index.clone(),
+            index: self.index,
             probabilities: self.probabilities.clone()
         }
     }
 }
 
 impl PartialEq for Cell {
+    /// Equality implementation for Cell
+    ///
+    /// ### Arguments
+    ///     other (&Self): other cell to compare
+    ///
+    /// ### Returns:
+    ///     bool: if the cell is the same
     fn eq(&self, other: &Self) -> bool {
         return self.index == other.index && self.probabilities == other.probabilities
     }
 }
 
+/// ### Strategy
+///
+/// Contains the name of the strategy and a hashmap with the
+/// index of the cell and the probabilities that should be removed from the cell
+///
+/// The strategy represents a step in the solving process of a sudoku puzzle
+///
+/// ### Attributes
+///    name (String): The name of the strategy
+///    remove (HashMap<u8, HashSet<u8>>): The index of the cell and the probabilities that
 pub struct Strategy {
     name: String,
     remove: HashMap<u8, HashSet<u8>>,
 }
 
+
 impl Strategy {
+    /// Creates a new strategy
+    ///
+    /// ### Arguments
+    ///    name (String): The name of the strategy
+    ///    remove (HashMap<u8, HashSet<u8>>): The index of the cell and the probabilities that
+    ///     should be removed
     pub fn new(name: String, remove: HashMap<u8, HashSet<u8>>) -> Strategy {
         return Strategy {
             name,
@@ -447,6 +559,11 @@ impl Strategy {
         }
     }
 
+    /// Prints the strategy when it has removals
+    /// Used for debugging
+    ///
+    /// The strategy will be printed with the name and the cells that will be removed.
+    /// Only prints if there are removals
     pub fn print(&self) {
         if self.remove.is_empty() {
             return
