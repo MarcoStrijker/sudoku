@@ -1,3 +1,5 @@
+#![allow(clippy::needless_return)]
+
 use std::collections::{HashMap, HashSet};
 use std::vec;
 use crate::lib::*;
@@ -10,9 +12,9 @@ pub enum Orientation {
     Row,
     Column,
     Block,
-    None
 }
 
+// This is an easy reference to return no strategies
 const NO_STRATEGIES: Vec<Strategy> = vec![];
 
 pub trait SolveProbabilities {
@@ -68,7 +70,7 @@ pub trait SolveProbabilities {
         return match orientation {
             Orientation::Row => { board.row(index) },
             Orientation::Column => { board.column(index) },
-            Orientation::Block => { board.block(index) }
+            Orientation::Block => { board.block(index) },
         };
     }
 }
@@ -388,7 +390,12 @@ impl SolveProbabilities for BoxLineReduction {
                 .map(|c| c.block())
                 .collect();
 
-            if block_indices.iter().map(|n| *n).unique().collect::<Vec<u8>>().len() != 1 || block_indices.len() <= 1{
+            if block_indices
+                .iter()
+                .map(|n| *n)
+                .unique()
+                .collect::<Vec<u8>>()
+                .len() != 1 || block_indices.len() <= 1 {
                 continue
             }
 
@@ -408,11 +415,11 @@ impl SolveProbabilities for BoxLineReduction {
             let hashmap: HashMap<u8, HashSet<u8>> = block
                 .cells
                 .iter()
-                .filter(|c| get_row_or_colum_index(&c) != index && !c.solved() && c.contains(&p))
+                .filter(|c| get_row_or_colum_index(c) != index && !c.solved() && c.contains(&p))
                 .map(|c| (c.index, HashSet::from([p])))
                 .collect();
 
-            if hashmap.len() == 0 {
+            if hashmap.is_empty() {
                 continue
             }
 
@@ -422,59 +429,7 @@ impl SolveProbabilities for BoxLineReduction {
                     hashmap.clone()
                 )
             );
-
-            println!("{:?}", orientation);
-            println!("{:?}", board.cells[63].probabilities);
-            strategies[strategies.len() - 1].print();
-            println!("{:?}", _strategy);
         }
         return strategies
-    }
-}
-
-
-struct XWing;
-
-impl SolveProbabilities for XWing {
-    fn name() -> String {
-        return String::from("XWing")
-    }
-
-    /// Orientation is arbitrary, could be columns as well
-    fn orientations() -> Vec<Orientation> {
-        return vec![Orientation::Row]
-    }
-
-    fn logic(board: &Board, orientation: &Orientation, index: u8) -> Vec<Strategy> {
-        let subset: Subset = board.row(index);
-        let missing_subset: Vec<Cell> = subset.missing();
-
-        if missing_subset.len() <= 2 {
-            return NO_STRATEGIES
-        }
-
-        for p in 1..=9 {
-            for combination in missing_subset.iter().combinations(2) {
-                if combination.iter().any(|c| !c.contains(&p)) {
-                    continue
-                }
-
-                let missing_in_first_column: Vec<Cell> = board
-                    .column(combination[0].index)
-                    .missing()
-                    .iter()
-                    // We want to keep only the cells that contain the probability and is another block
-                    .filter(|c| c.contains(&p) && c.block() != combination[0].index)
-                    .collect();
-
-                if missing_in_first_column.is_empty() {
-                    continue
-                }
-
-                for
-            }
-        }
-
-        return NO_STRATEGIES
     }
 }
