@@ -69,8 +69,7 @@ pub fn import_puzzles_from_file() -> Vec<Vec<String>> {
         .map(|x| x
             .to_string()
             .split(", ")
-            .map(|x| x
-                .to_string())
+            .map(|x| x.to_string())
             .collect())
         .collect();
 }
