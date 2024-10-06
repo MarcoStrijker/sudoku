@@ -5,55 +5,57 @@ mod utils;
 use std::iter::zip;
 use crate::lib::{Board, Strategy};
 use crate::solvers::*;
-use crate::utils::brute_force;
+use crate::utils::{brute_force, import_puzzles_from_file};
 
 fn main() {
-    let start = String::from("400000938032094100095300240370609004529001673604703090957008300003900400240030709");
-    // let start = String::from("065370002000001370000640800097004028080090001100020940040006700070018050230900060");
-    let board = Board::from_string(&start);
-    board.print_board();
 
-    let mut super_board: Board = board.clone();
-    let mut strategies: Vec<Strategy>;
-    let correct: Board = brute_force(board);
+    let puzzles = import_puzzles_from_file();
 
-    let solvers: Vec<fn(&Board) -> Vec<Strategy>> = vec![
-        Naked::get_strategies,
-        Hidden::get_strategies,
-        Pointing::get_strategies,
-        BoxLineReduction::get_strategies,
-    ];
+    let mut nr_solved: usize = 0;
+    let mut nr_unsolved: usize = 0;
+    let mut nr_wrong: usize = 0;
 
-    for _ in 0..9 {
-        if super_board.solved() {
-            break
+    for puzzle in puzzles {
+        let mut board = Board::from_string(&puzzle[0]);
+
+        let strategy_solvers: [fn(&Board) -> Vec<Strategy>; 5] = [
+            LastRemainingCell::get_strategies,
+            Naked::get_strategies,
+            Hidden::get_strategies,
+            Pointing::get_strategies,
+            BoxLineReduction::get_strategies,
+        ];
+
+        for _ in 0..100 {
+            for s in &strategy_solvers {
+                let strategies: Vec<Strategy> = s(&board);
+                if strategies.is_empty() {
+                    continue
+                }
+
+                for strat in strategies {
+                    board.apply_strategy(strat);
+                }
+
+                break
+            }
         }
 
-        super_board = LastRemainingCell::get_and_apply_strategies(super_board);
-        for s in &solvers {
-            strategies = s(&super_board);
+        if board.to_string().contains("0") {
+            nr_unsolved += 1;
 
-            if strategies.is_empty() {
-                continue
-            }
-
-            super_board = <LastRemainingCell as SolveProbabilities>::apply_strategies(super_board, strategies);
-            break
         }
-
-        for (a, b) in zip(&super_board.cells, &correct.cells) {
-            if !a.solved() {
-                continue
-            }
-
-            if a.probabilities != b.probabilities {
-                println!("{:?} is different!!!", a.index);
-                panic!()
-            }
+        else if board.to_string() == puzzle[1] {
+            nr_solved += 1;
+        } else {
+            nr_wrong += 1;
         }
     }
 
-    super_board.print_board();
+    println!("Solved: {}", nr_solved);
+    println!("Unsolved: {}", nr_unsolved);
+    println!("Wrong: {}", nr_wrong);
+
 }
 
 #[cfg(test)]
