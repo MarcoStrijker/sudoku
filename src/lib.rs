@@ -344,7 +344,7 @@ impl Board {
         )
     }
 
-    pub fn apply_strategy(& mut self, strategy: Strategy) {
+    pub fn apply_strategy(&mut self, strategy: Strategy) {
         for (i, probabilities) in strategy.remove {
             self.cells[usize::from(i)].probabilities.retain(|p| !probabilities.contains(p))
         }
