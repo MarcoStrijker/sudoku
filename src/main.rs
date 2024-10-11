@@ -63,21 +63,19 @@ mod tests {
     // use crate::utils::brute_force;
     use super::*;
 
-    // #[test]
-    // fn solve_via_brute_force() {
-    //     let mut board: Board;
-    //     let puzzles = utils::import_puzzles_from_file();
-    //
-    //     for puzzle in puzzles {
-    //         board = Board::from_string(&puzzle[0]);
-    //
-    //         for _ in 0..100 {
-    //             board = brute_force(board);
-    //         }
-    //
-    //         assert_eq!(board.to_string(), puzzle[1]);
-    //     }
-    // }
+    #[test]
+    fn solve_via_brute_force() {
+        let mut board: Board;
+        let puzzles = utils::import_puzzles_from_file();
+
+        for puzzle in puzzles {
+            board = Board::from_string(&puzzle[0]);
+
+            board = brute_force(board);
+
+            assert_eq!(board.to_string(), puzzle[1]);
+        }
+    }
 
     #[test]
     fn resolve_probabilities_pointing_one() {
