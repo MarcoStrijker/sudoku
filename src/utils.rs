@@ -11,48 +11,55 @@ use crate::lib::Board;
 ///     The solved board
 #[allow(dead_code)]
 pub fn brute_force(mut board: Board) -> Board {
-    let mut valid: bool;
-    let mut current_index_board: u8;
-    let mut current_solution: u8;
-    let mut current_index: u8 = 0;
-    let mut addition: u8 = 1;
-    let mut count: u32 = 0;
-    let mut solve_history: Vec<u32> = Vec::<u32>::new();
-
-    // Get a vector with the index of the blank cells
     let blanks: Vec<u8> = board.blanks();
+    if blanks.is_empty() {
+        return board
+    }
+    let mut blank_index: usize = 0;
+    let mut addition: u8 = 1;
+    let mut history: Vec<Board> = Vec::with_capacity(blanks.len());
+
+    let mut board_index = blanks[blank_index];
+    let mut current_solution: u8 = board.get(board_index);
 
     while !board.solved() {
-        // Convert the index within the blanks to the board index
-        // And fetch the filled in number
-        current_index_board = blanks[current_index as usize];
-        current_solution = board.get(current_index_board);
-
-        // When all possible solutions are exhausted
-        // Move to previous solution, rollback the board
         if current_solution + addition > 9 {
-            board.rollback(solve_history[(current_index as usize) - 1]);
-            current_index -= 1;
+            if blank_index == 0 {
+                // No solution exists
+                break;
+            }
+            blank_index -= 1;
             addition = 1;
-            continue
+            board_index = blanks[blank_index];
+            current_solution = board.get(board_index);
+            board = history[blank_index].clone();
+            continue;
         }
 
-        valid = board.try_set(current_index_board, current_solution + addition);
+        let valid: bool = board.try_set(board_index, current_solution + addition);
 
         if !valid {
             addition += 1;
-            continue
+            continue;
         }
 
-        // Add new solution
-        count += 1;
-        solve_history.insert(current_index as usize, count);
-        current_index += 1;
+        if blank_index < history.len() {
+            history[blank_index] = board.clone();
+        } else if blank_index + 1 == blanks.len() {
+            break
+        } else {
+            history.push(board.clone());
+        }
+
+        blank_index += 1;
         addition = 1;
+        board_index = blanks[blank_index];
+        current_solution = board.get(board_index);
     }
 
     return board
 }
+
 
 /// Returns a vector with vectors, containing the puzzle
 /// and solution of that puzzle
