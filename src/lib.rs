@@ -150,7 +150,6 @@ impl Subset {
 
 pub struct Board {
     pub cells: [Cell; 81],
-    pub history: Vec<[Cell; 81]>
 }
 
 #[allow(dead_code)]
@@ -165,11 +164,9 @@ impl Board {
             .collect::<Vec<Cell>>()
             .try_into()
             .expect("The string must be 81 characters");
-        let current_history: Vec<[Cell; 81]> =  vec![current_state.clone()];
 
         return Board {
             cells: current_state,
-            history: current_history
         };
     }
 
@@ -180,7 +177,6 @@ impl Board {
     pub fn clone(&self) -> Board {
         return Board {
             cells: self.cells.clone(),
-            history: self.history.clone(),
         }
     }
 
@@ -249,11 +245,6 @@ impl Board {
             .collect();
     }
 
-    pub fn rollback(&mut self, index: u32) {
-        self.cells = self.history[index as usize].clone();
-        // self.history.truncate(index as usize + 1);
-    }
-
     /// Get the value of a cell
     ///
     /// ### Args:
@@ -276,7 +267,6 @@ impl Board {
         //     solution (u8): The solution 1-9
         //
         self.cells[index as usize].set(&solution);
-        self.history.insert(self.history.len(), self.cells.clone());
     }
 
     /// Try to set a solution into a cell
